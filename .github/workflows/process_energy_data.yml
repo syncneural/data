@@ -1,0 +1,43 @@
+# GitHub Actions Workflow to Run Energy Data Processing
+
+name: Process Energy Data
+
+on:
+  workflow_dispatch:  # Allows manual trigger of the workflow
+  schedule:
+    - cron: '0 0 * * 0'  # Schedule to run weekly on Sundays at midnight
+
+jobs:
+  process-energy-data:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python 3.8
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.8
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas requests
+
+    - name: Download datasets
+      run: |
+        wget -O owid-energy-data.csv "https://raw.githubusercontent.com/owid/energy-data/refs/heads/master/owid-energy-data.csv"
+        wget -O owid-energy-codebook.csv "https://raw.githubusercontent.com/owid/energy-data/refs/heads/master/owid-energy-codebook.csv"
+
+    - name: Run energy data processing script
+      run: |
+        python energy_data_processing.py
+
+    - name: Commit and push changes
+      run: |
+        git config --global user.name "github-actions"
+        git config --global user.email "github-actions@github.com"
+        git add processed_energy_data.csv
+        git commit -m "Update processed energy data"
+        git push
