@@ -1,6 +1,6 @@
-# GitHub Actions Workflow to Run Energy Data Processing
+# GitHub Actions Workflow to Run Energy Data Processing and Codebook Update
 
-name: Process Energy Data
+name: Process Energy Data and Update Codebook
 
 on:
   workflow_dispatch:  # Allows manual trigger of the workflow
@@ -13,17 +13,17 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v3
 
     - name: Set up Python 3.8
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: 3.8
 
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pandas requests
+        pip install pandas requests pyyaml
 
     - name: Download datasets
       run: |
@@ -37,13 +37,14 @@ jobs:
     - name: Run codebook update script
       run: |
         python scripts/update_codebook.py
-        mv output/filtered_codebook.csv output/codebook.csv
 
     - name: Commit and push changes
+      env:
+        GH_TOKEN: ${{ secrets.GH_TOKEN }}
       run: |
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
         git add output/processed_energy_data.csv
         git add output/codebook.csv
         git commit -m "Update processed energy data and codebook"
-        git push
+        git push https://x-access-token:${GH_TOKEN}@github.com/syncneural/data.git HEAD:main
