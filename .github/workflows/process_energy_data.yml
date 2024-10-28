@@ -32,18 +32,18 @@ jobs:
 
     - name: Run energy data processing script
       run: |
-        python energy_data_processing.py
+        python scripts/energy_data_processing.py
 
     - name: Run codebook update script
       run: |
-        python update_codebook.py
+        python scripts/update_codebook.py
         mv output/filtered_codebook.csv output/codebook.csv
 
     - name: Commit and push changes
       run: |
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
-        git add processed_energy_data.csv
-        git add codebook.csv
+        git add output/processed_energy_data.csv
+        git add output/codebook.csv
         git commit -m "Update processed energy data and codebook"
         git push
