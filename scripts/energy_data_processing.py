@@ -5,6 +5,7 @@ import logging
 import threading
 import time
 import os
+import yaml
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -16,22 +17,43 @@ def configure_pandas():
     pd.set_option('display.max_rows', 250)  # Display up to 5 rows for brevity
     pd.set_option('display.max_columns', None)  # Display all columns without truncation
 
+# Step 3: Load configuration from config.yaml
+def load_config():
+    config_path = 'config.yaml'
+    try:
+        with open(config_path, 'r') as file:
+            config = yaml.safe_load(file)
+    except FileNotFoundError:
+        logger.error("Config file not found. Please make sure config.yaml is available.")
+        raise
+    return config
+
+# Set the active year and previous year range from the configuration
+config = load_config()
+active_year = config['active_year']
+previousYearRange = config['previousYearRange']
+    # Update existing config if required
+    config['columns_to_keep'] = columns_to_keep
+    with open(config_path, 'w') as file:
+        yaml.dump(config, file)
+    return config
+
 # Set the active year and previous year range
 active_year = 2022
 previousYearRange = 5
 
-# Step 3: Pre-cache GDP data if it already exists
+# Step 4: Pre-cache GDP data if it already exists
 def load_cached_gdp_data():
     if os.path.exists("cached_gdp_data.csv"):
         return pd.read_csv("cached_gdp_data.csv", index_col=0).to_dict(orient='index')
     else:
         return {}
 
-# Step 4: Save cached GDP data
+# Step 5: Save cached GDP data
 def save_cached_gdp_data(gdp_data):
     pd.DataFrame.from_dict(gdp_data, orient='index').to_csv("cached_gdp_data.csv")
 
-# Step 5: Fetch the GDP data for a specific country
+# Step 6: Fetch the GDP data for a specific country
 # Added backoff strategy for retrying requests
 def fetch_gdp_data_range(country_code, start_year, end_year, result_dict, retry=3):
     """
@@ -67,7 +89,7 @@ def fetch_gdp_data_range(country_code, start_year, end_year, result_dict, retry=
             backoff_time *= 2
     result_dict[country_code] = None
 
-# Step 6: Download the main dataset and codebook if necessary
+# Step 7: Download the main dataset and codebook if necessary
 # Added parallel download functionality
 def download_datasets():
     urls = [
@@ -84,7 +106,7 @@ def download_datasets():
     for thread in threads:
         thread.join()
 
-# Step 7: Function to download a file
+# Step 8: Function to download a file
 def download_file(filename, url):
     try:
         response = requests.get(url)
@@ -94,31 +116,16 @@ def download_file(filename, url):
     except requests.exceptions.RequestException as e:
         logger.error(f"Failed to download {filename}: {e}")
 
-# Step 8: Load the main dataset
+# Step 9: Load the main dataset
 def load_main_dataset():
     return pd.read_csv('owid-energy-data.csv', delimiter=',')
 
-# Step 9: Load codebook dataset
-def load_codebook():
-    return pd.read_csv('owid-energy-codebook.csv')
-
-# Step 10: Filter for relevant columns and drop rows with missing population or electricity_demand
+# Step 10: Load or update configuration, filter for relevant columns, and drop rows with missing population or electricity_demand
 def filter_relevant_columns(df):
-    columns_to_keep = [
-        'country', 'iso_code', 'year', 'population', 'gdp', 'biofuel_electricity',
-        'biofuel_share_elec', 'carbon_intensity_elec', 'coal_electricity', 'coal_share_elec',
-        'electricity_demand', 'electricity_generation', 'electricity_share_energy',
-        'fossil_elec_per_capita', 'fossil_electricity', 'fossil_share_elec', 'gas_electricity',
-        'gas_share_elec', 'hydro_electricity', 'hydro_share_elec', 'low_carbon_elec_per_capita',
-        'low_carbon_electricity', 'low_carbon_share_elec', 'nuclear_electricity',
-        'nuclear_share_elec', 'oil_electricity', 'oil_share_elec', 'other_renewable_electricity',
-        'other_renewable_exc_biofuel_electricity', 'other_renewables_elec_per_capita',
-        'other_renewables_elec_per_capita_exc_biofuel', 'other_renewables_share_elec',
-        'other_renewables_share_elec_exc_biofuel', 'per_capita_electricity',
-        'renewables_elec_per_capita', 'renewables_electricity', 'renewables_share_elec',
-        'solar_electricity', 'solar_share_elec', 'wind_electricity', 'wind_share_elec'
-    ]
-    df_filtered = df[columns_to_keep].dropna(subset=['population', 'electricity_demand'])
+    config = load_config()
+columns_to_keep = config['columns_to_keep']
+
+        df_filtered = df[columns_to_keep].dropna(subset=['population', 'electricity_demand'])
     # Dropping rows with missing population or electricity demand as countries without these values are not relevant to this dataset.
     return df_filtered
 
@@ -214,20 +221,4 @@ def main():
     codebook_df = load_codebook()
     df_filtered = filter_relevant_columns(df)
     df_filtered = apply_unit_conversion(df_filtered, codebook_df)
-    df_filtered = filter_year_range(df_filtered)
-    df_latest = prioritize_active_year(df_filtered)
-
-    # Start filling missing GDP data in parallel for each country
-    gdp_results = load_cached_gdp_data()
-    df_latest = fill_gdp_using_world_bank(df_latest, gdp_results)
-    save_cached_gdp_data(gdp_results)
-
-    df_latest = rename_columns(df_latest, codebook_df)
-
-    # Save the final dataframe as CSV
-    df_latest.to_csv('output/processed_energy_data.csv', index=False)
-    logger.info("Final processed data saved to 'output/processed_energy_data.csv'")
-
-# Run main function
-if __name__ == "__main__":
-    main()
+    df_filtered = filter_year_range(df_filtered
