@@ -32,7 +32,7 @@ jobs:
 
     - name: Run energy data processing script
       run: |
-        python energy_data_processing.py
+        python scripts/energy_data_processing.py
 
     - name: Commit and push changes
       run: |
