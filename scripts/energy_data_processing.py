@@ -1,7 +1,4 @@
-# Step 1: Install necessary libraries (if not already installed)
-!pip install pandas requests
-
-# Step 2: Import required libraries
+# Step 1: Import required libraries
 import pandas as pd
 import requests
 import logging
@@ -13,7 +10,7 @@ import os
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("EnergyDataProcessor")  # Set logger name to identify messages from this module
 
-# Configure pandas display settings for clarity
+# Step 2: Configure pandas display settings for clarity
 def configure_pandas():
     pd.set_option('display.float_format', '{:.0f}'.format)  # Show full numbers, no scientific notation
     pd.set_option('display.max_rows', 250)  # Display up to 5 rows for brevity
@@ -23,18 +20,18 @@ def configure_pandas():
 active_year = 2022
 previousYearRange = 5
 
-# Pre-cache GDP data if it already exists
+# Step 3: Pre-cache GDP data if it already exists
 def load_cached_gdp_data():
     if os.path.exists("cached_gdp_data.csv"):
         return pd.read_csv("cached_gdp_data.csv", index_col=0).to_dict(orient='index')
     else:
         return {}
 
-# Save cached GDP data
+# Step 4: Save cached GDP data
 def save_cached_gdp_data(gdp_data):
     pd.DataFrame.from_dict(gdp_data, orient='index').to_csv("cached_gdp_data.csv")
 
-# Fetch the GDP data for a specific country
+# Step 5: Fetch the GDP data for a specific country
 # Added backoff strategy for retrying requests
 def fetch_gdp_data_range(country_code, start_year, end_year, result_dict, retry=3):
     """
@@ -70,7 +67,7 @@ def fetch_gdp_data_range(country_code, start_year, end_year, result_dict, retry=
             backoff_time *= 2
     result_dict[country_code] = None
 
-# Download the main dataset and codebook if necessary
+# Step 6: Download the main dataset and codebook if necessary
 # Added parallel download functionality
 def download_datasets():
     urls = [
@@ -87,7 +84,7 @@ def download_datasets():
     for thread in threads:
         thread.join()
 
-# Function to download a file
+# Step 7: Function to download a file
 def download_file(filename, url):
     try:
         response = requests.get(url)
@@ -97,15 +94,15 @@ def download_file(filename, url):
     except requests.exceptions.RequestException as e:
         logger.error(f"Failed to download {filename}: {e}")
 
-# Load the main dataset
+# Step 8: Load the main dataset
 def load_main_dataset():
     return pd.read_csv('owid-energy-data.csv', delimiter=',')
 
-# Load codebook dataset
+# Step 9: Load codebook dataset
 def load_codebook():
     return pd.read_csv('owid-energy-codebook.csv')
 
-# Filter for relevant columns and drop rows with missing population or electricity_demand
+# Step 10: Filter for relevant columns and drop rows with missing population or electricity_demand
 def filter_relevant_columns(df):
     columns_to_keep = [
         'country', 'iso_code', 'year', 'population', 'gdp', 'biofuel_electricity',
@@ -125,7 +122,7 @@ def filter_relevant_columns(df):
     # Dropping rows with missing population or electricity demand as countries without these values are not relevant to this dataset.
     return df_filtered
 
-# Apply codebook-based unit conversion for TWh to kWh only
+# Step 11: Apply codebook-based unit conversion for TWh to kWh only
 def apply_unit_conversion(df_filtered, codebook_df):
     for _, row in codebook_df.iterrows():
         col_name, unit = row['column'], row['unit']
@@ -134,18 +131,18 @@ def apply_unit_conversion(df_filtered, codebook_df):
             logger.info(f"Converted {col_name} from TWh to kWh")
     return df_filtered
 
-# Filter for data within the specified year range
+# Step 12: Filter for data within the specified year range
 def filter_year_range(df_filtered):
     df_filtered = df_filtered[(df_filtered['year'] >= active_year - previousYearRange) & (df_filtered['year'] <= active_year)]
     df_filtered.loc[:, 'latest_data_year'] = df_filtered['year']  # Avoided SettingWithCopyWarning by using .loc[]
     return df_filtered
 
-# Prioritize data for the active year, if available; otherwise, use the latest year within the range
+# Step 13: Prioritize data for the active year, if available; otherwise, use the latest year within the range
 def prioritize_active_year(df_filtered):
     df_filtered = df_filtered.sort_values(by=['country', 'iso_code', 'year'], ascending=[True, True, False])
     return df_filtered.groupby(['country', 'iso_code']).first().reset_index()
 
-# Fill missing GDP data using the optimized approach
+# Step 14: Fill missing GDP data using the optimized approach
 # Now includes pre-caching of GDP data
 def fill_gdp_using_world_bank(df, gdp_results):
     missing_gdp = df[df['gdp'].isna() & df['iso_code'].notna()]
@@ -175,7 +172,7 @@ def fill_gdp_using_world_bank(df, gdp_results):
             logger.warning(f"No GDP data available within the specified range for {row['country']}")
     return df
 
-# Rename columns using codebook at the very end
+# Step 15: Rename columns using codebook at the very end
 def rename_columns(df_latest, codebook_df):
     rename_map = {}
     for _, row in codebook_df.iterrows():
@@ -209,7 +206,7 @@ def rename_columns(df_latest, codebook_df):
     df_latest.columns = [essential_columns.get(col.lower(), col) for col in df_latest.columns]
     return df_latest
 
-# Main execution function
+# Step 16: Main execution function
 def main():
     configure_pandas()
     download_datasets()
@@ -230,8 +227,6 @@ def main():
     # Save the final dataframe as CSV
     df_latest.to_csv('output/processed_energy_data.csv', index=False)
     logger.info("Final processed data saved to 'output/processed_energy_data.csv'")
-    # Removed display statement as it is not valid for a Python script run outside of Jupyter
-    # display(df_latest)
 
 # Run main function
 if __name__ == "__main__":
