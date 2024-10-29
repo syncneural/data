@@ -67,7 +67,6 @@ jobs:
       run: |
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
-        git add output/processed_energy_data.csv
-        git add output/codebook.csv
-        git commit -m "Update processed energy data and codebook"
+        git add .  # Add all files, including untracked ones
+        git diff-index --quiet HEAD || git commit -m "Update processed energy data and codebook"  # Commit only if there are changes
         git push https://x-access-token:${GH_TOKEN}@github.com/syncneural/data.git HEAD:main
