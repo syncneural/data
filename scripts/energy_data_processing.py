@@ -32,15 +32,6 @@ def load_config():
 config = load_config()
 active_year = config['active_year']
 previousYearRange = config['previousYearRange']
-    # Update existing config if required
-    config['columns_to_keep'] = columns_to_keep
-    with open(config_path, 'w') as file:
-        yaml.dump(config, file)
-    return config
-
-# Set the active year and previous year range
-active_year = 2022
-previousYearRange = 5
 
 # Step 4: Pre-cache GDP data if it already exists
 def load_cached_gdp_data():
@@ -123,9 +114,8 @@ def load_main_dataset():
 # Step 10: Load or update configuration, filter for relevant columns, and drop rows with missing population or electricity_demand
 def filter_relevant_columns(df):
     config = load_config()
-columns_to_keep = config['columns_to_keep']
-
-        df_filtered = df[columns_to_keep].dropna(subset=['population', 'electricity_demand'])
+    columns_to_keep = config['columns_to_keep']
+    df_filtered = df[columns_to_keep].dropna(subset=['population', 'electricity_demand'])
     # Dropping rows with missing population or electricity demand as countries without these values are not relevant to this dataset.
     return df_filtered
 
@@ -218,7 +208,25 @@ def main():
     configure_pandas()
     download_datasets()
     df = load_main_dataset()
-    codebook_df = load_codebook()
+    codebook_df = pd.read_csv('owid-energy-codebook.csv', delimiter=',')
     df_filtered = filter_relevant_columns(df)
     df_filtered = apply_unit_conversion(df_filtered, codebook_df)
-    df_filtered = filter_year_range(df_filtered
+    df_filtered = filter_year_range(df_filtered)
+    df_latest = prioritize_active_year(df_filtered)
+
+    # Start filling missing GDP data in parallel for each country
+    gdp_results = load_cached_gdp_data()
+    df_latest = fill_gdp_using_world_bank(df_latest, gdp_results)
+    save_cached_gdp_data(gdp_results)
+
+    # Rename columns using codebook
+    df_latest = rename_columns(df_latest, codebook_df)
+
+    # Save the final DataFrame
+    output_path = 'output/processed_energy_data.csv'
+    df_latest.to_csv(output_path, index=False)
+    logger.info(f"Processed energy data saved to {output_path}")
+
+# Run main function
+if __name__ == "__main__":
+    main()
