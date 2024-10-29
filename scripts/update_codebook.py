@@ -58,13 +58,21 @@ def apply_transformations(filtered_codebook):
     logger.info("Applied transformation: Replaced 'terawatt' with 'kilowatt' in description and unit columns.")
     return filtered_codebook
 
-# Step 8: Save the filtered and transformed codebook dataset
+# Step 8: Fix column names using utils.py
+from utils import transform_column_names
+
+def fix_column_names(filtered_codebook):
+    filtered_codebook = transform_column_names(filtered_codebook)
+    logger.info("Fixed column names using the utility function from utils.py.")
+    return filtered_codebook
+
+# Step 9: Save the filtered, transformed, and updated codebook dataset
 def save_filtered_codebook(filtered_codebook):
     output_path = 'output/codebook.csv'
     filtered_codebook.to_csv(output_path, index=False)
     logger.info(f"Filtered codebook saved to {output_path}")
 
-# Step 9: Main function
+# Step 10: Main function
 def main():
     codebook_df = load_codebook()
     processed_data_df = load_processed_data()
@@ -72,6 +80,7 @@ def main():
     filtered_codebook = filter_codebook(codebook_df, config)
     updated_codebook = update_codebook_with_processed_columns(filtered_codebook, processed_data_df)
     transformed_codebook = apply_transformations(updated_codebook)
+    transformed_codebook = fix_column_names(transformed_codebook)
     save_filtered_codebook(transformed_codebook)
 
 # Run main function
