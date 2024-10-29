@@ -1,3 +1,4 @@
+# Corrected config.yaml file for energy data processing
 columns_to_keep:
   - country
   - iso_code
@@ -42,4 +43,5 @@ columns_to_keep:
   - wind_share_elec
 
 active_year: 2022
-previous_year_range: 5
+previousYearRange: 5
+force_update: true
