@@ -180,4 +180,16 @@ def main():
     df_filtered = filter_main_dataset(df, config)
     codebook_df = pd.read_csv('owid-energy-codebook.csv')  # Load codebook if not already loaded
     df_filtered = apply_unit_conversion(df_filtered, codebook_df)
-    df_filtered =
+    df_filtered = filter_year_range(df_filtered, config['active_year'], config['previous_year_range'])
+    df_latest = prioritize_active_year(df_filtered)
+    df_latest = fill_gdp_using_world_bank(df_latest, config['active_year'], config['previous_year_range'])
+    df_latest = rename_columns(df_latest, codebook_df)
+
+    # Save the processed dataset
+    output_path = os.path.join(output_dir, 'processed_energy_data.csv')
+    df_latest.to_csv(output_path, index=False)
+    logger.info(f"Processed energy data saved to {output_path}")
+
+# Run main function
+if __name__ == "__main__":
+    main()
