@@ -64,11 +64,21 @@ jobs:
         git config --global user.email "github-actions@github.com"
         git add output/processed_energy_data.csv
         git add output/codebook.csv
-        if ! git diff-index --quiet HEAD; then
-          echo "Changes detected, committing and pushing..."
-          git commit -m "Update processed energy data and codebook"
-          git push https://x-access-token:${GH_TOKEN}@github.com/syncneural/data.git HEAD:main
-          echo "Changes have been successfully pushed."
-        else
+
+        # Check if there are any changes
+        if git diff-index --quiet HEAD; then
           echo "No changes detected, nothing to commit."
+          exit 0  # Exit gracefully with a success code
         fi
+
+        echo "Changes detected, committing and pushing..."
+        git commit -m "Update processed energy data and codebook" || {
+          echo "Commit failed: No changes to commit."
+          exit 0  # Exit gracefully, as this is not an error case
+        }
+
+        git push https://x-access-token:${GH_TOKEN}@github.com/syncneural/data.git HEAD:main || {
+          echo "Push failed. Please check repository permissions and access tokens."
+          exit 1  # Exit with failure if push fails
+        }
+        echo "Changes have been successfully pushed."
