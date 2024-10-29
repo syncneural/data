@@ -3,6 +3,7 @@ import pandas as pd
 import requests
 import logging
 import yaml
+import os
 from utils import transform_column_names  # Import utility function for transforming column names
 
 # Configure logging
@@ -123,6 +124,12 @@ def rename_columns(df_latest, codebook_df):
 # Step 11: Main function
 def main():
     config = load_or_create_config()
+    
+    # Ensure the output directory exists
+    output_dir = 'output'
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
     df = load_main_dataset()
     df_filtered = filter_main_dataset(df, config)
     codebook_df = pd.read_csv('owid-energy-codebook.csv')  # Load codebook if not already loaded
@@ -133,8 +140,12 @@ def main():
     df_latest = rename_columns(df_latest, codebook_df)
 
     # Save the processed dataset
-    df_latest.to_csv('output/processed_energy_data.csv', index=False)
-    logger.info("Processed energy data saved to output/processed_energy_data.csv")
+    try:
+        logger.info("Saving processed energy data...")
+        df_latest.to_csv(os.path.join(output_dir, 'processed_energy_data.csv'), index=False)
+        logger.info("Processed energy data saved successfully to output/processed_energy_data.csv")
+    except Exception as e:
+        logger.error(f"Failed to save processed energy data: {e}")
 
 # Run main function
 if __name__ == "__main__":
