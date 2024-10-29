@@ -1,4 +1,6 @@
 # Step 1: Import required libraries
+import threading
+import time
 import pandas as pd
 import requests
 import logging
@@ -69,20 +71,37 @@ def fetch_gdp_data_range(country_code, start_year, end_year):
 
 import urllib.request
 
-# Step 4: Download and Load the main dataset
-def download_energy_data():
-    url = "https://raw.githubusercontent.com/owid/energy-data/refs/heads/master/owid-energy-data.csv"
-    output_path = "owid-energy-data.csv"
-    if not os.path.exists(output_path):
-        logger.info(f"Downloading {output_path}...")
-        urllib.request.urlretrieve(url, output_path)
-        logger.info(f"Downloaded {output_path}.")
+# Step 4: Download the datasets concurrently
+def download_datasets(force_update=True):
+    urls = [
+        ("owid-energy-data.csv", "https://raw.githubusercontent.com/owid/energy-data/refs/heads/master/owid-energy-data.csv"),
+        ("owid-energy-codebook.csv", "https://raw.githubusercontent.com/owid/energy-data/refs/heads/master/owid-energy-codebook.csv")
+    ]
 
-# Step 4: Load the main dataset
+    threads = []
+    for filename, url in urls:
+        if force_update or not os.path.exists(filename):
+            thread = threading.Thread(target=download_file, args=(filename, url))
+            threads.append(thread)
+            thread.start()
+
+    for thread in threads:
+        thread.join()
+
+def download_file(filename, url):
+    try:
+        response = requests.get(url)
+        with open(filename, "wb") as f:
+            f.write(response.content)
+        logger.info(f"Downloaded {filename} successfully.")
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Failed to download {filename}: {e}")
+
+# Step 5: Load the main dataset
 def load_main_dataset():
     return pd.read_csv('owid-energy-data.csv', delimiter=',')
 
-# Step 5: Filter for relevant columns and drop rows with missing population or electricity_demand
+# Step 6: Filter for relevant columns and drop rows with missing population or electricity_demand
 def filter_main_dataset(df, config):
     columns_to_keep = config['columns_to_keep']
     if not columns_to_keep:
@@ -90,7 +109,7 @@ def filter_main_dataset(df, config):
     df_filtered = df[columns_to_keep].dropna(subset=['population', 'electricity_demand'])
     return df_filtered
 
-# Step 6: Apply codebook-based unit conversion for TWh to kWh only
+# Step 7: Apply codebook-based unit conversion for TWh to kWh only
 def apply_unit_conversion(df_filtered, codebook_df):
     for _, row in codebook_df.iterrows():
         col_name, unit = row['column'], row['unit']
@@ -99,42 +118,57 @@ def apply_unit_conversion(df_filtered, codebook_df):
             logger.info(f"Converted {col_name} from TWh to kWh")
     return df_filtered
 
-# Step 7: Filter for data within the specified year range and set 'latest_data_year'
+# Step 8: Filter for data within the specified year range and set 'latest_data_year'
 def filter_year_range(df_filtered, active_year, previousYearRange):
     df_filtered = df_filtered[(df_filtered['year'] >= active_year - previousYearRange) & (df_filtered['year'] <= active_year)]
     df_filtered['latest_data_year'] = df_filtered['year']
     return df_filtered
 
-# Step 8: Prioritize data for the active year, if available; otherwise, use the latest year within the range
+# Step 9: Prioritize data for the active year, if available; otherwise, use the latest year within the range
 def prioritize_active_year(df_filtered):
     df_filtered = df_filtered.sort_values(by=['country', 'iso_code', 'year'], ascending=[True, True, False])
     df_latest = df_filtered.groupby(['country', 'iso_code']).first().reset_index()
     return df_latest
 
-# Step 9: Fill missing GDP data using the optimized approach
+# Step 10: Fill missing GDP data using a multithreaded approach
 def fill_gdp_using_world_bank(df, active_year, previousYearRange):
     missing_gdp = df[df['gdp'].isna() & df['iso_code'].notna()]
+    threads = []
+    gdp_results = {}
 
     for index, row in missing_gdp.iterrows():
         country_code = row['iso_code']
-        gdp_data = fetch_gdp_data_range(country_code, active_year - previousYearRange, active_year)
+        thread = threading.Thread(target=fetch_gdp_data_range, args=(country_code, active_year - previousYearRange, active_year, gdp_results))
+        threads.append(thread)
+        thread.start()
+
+    # Wait for all threads to complete
+    for thread in threads:
+        thread.join()
+
+    # Fill the GDP data from the results
+    for index, row in missing_gdp.iterrows():
+        country_code = row['iso_code']
+        gdp_data = gdp_results.get(country_code, None)
         if gdp_data:
             latest_year = max(gdp_data.keys())
-            df.at[index, 'gdp'] = gdp_data[latest_year]
-            df.at[index, 'latest_data_year'] = latest_year
+            df.loc[index, 'gdp'] = gdp_data[latest_year]  # Used .loc[] to ensure correct DataFrame modification
+            df.loc[index, 'latest_data_year'] = latest_year
             logger.info(f"Filled GDP for {row['country']} using year: {latest_year}")
         else:
             logger.warning(f"No GDP data available within the specified range for {row['country']}")
     return df
 
-# Step 10: Rename columns as the final step using the utility function
+# Step 11: Rename columns as the final step using the utility function
 def rename_columns(df_latest, codebook_df):
     # Properly pass the entire DataFrame and codebook to the transform function
     return transform_column_names(df_latest, codebook_df)
 
-# Step 11: Main function
+# Step 12: Main function
 def main():
-    # Download the dataset if not already available
+    # Download the datasets, force update to get the latest versions
+    download_datasets(force_update=True)
+    download_datasets()
     download_energy_data()
     config = load_or_create_config()
     
