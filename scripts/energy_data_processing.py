@@ -19,30 +19,19 @@ active_year = 2022
 previousYearRange = 5
 
 # Step 2: Load configuration from config.yaml
-# If the config file does not exist, create one from the existing columns
-
+# If the config file does not exist, create one with the relevant keys
 def load_or_create_config():
     config_path = 'config.yaml'
     try:
         with open(config_path, 'r') as file:
             config = yaml.safe_load(file)
+            # Ensure all keys are present in the loaded config
+            config.setdefault('previous_year_range', previousYearRange)
+            config.setdefault('active_year', active_year)
+            config.setdefault('columns_to_keep', [])
     except FileNotFoundError:
-        logger.info(f"Config file not found. Creating new config.yaml with current columns.")
-        columns_to_keep = [
-            'country', 'iso_code', 'year', 'population', 'gdp', 'biofuel_electricity',
-            'biofuel_share_elec', 'carbon_intensity_elec', 'coal_electricity', 'coal_share_elec',
-            'electricity_demand', 'electricity_generation', 'electricity_share_energy',
-            'fossil_elec_per_capita', 'fossil_electricity', 'fossil_share_elec', 'gas_electricity',
-            'gas_share_elec', 'hydro_electricity', 'hydro_share_elec', 'low_carbon_elec_per_capita',
-            'low_carbon_electricity', 'low_carbon_share_elec', 'nuclear_electricity',
-            'nuclear_share_elec', 'oil_electricity', 'oil_share_elec', 'other_renewable_electricity',
-            'other_renewable_exc_biofuel_electricity', 'other_renewables_elec_per_capita',
-            'other_renewables_elec_per_capita_exc_biofuel', 'other_renewables_share_elec',
-            'other_renewables_share_elec_exc_biofuel', 'per_capita_electricity',
-            'renewables_elec_per_capita', 'renewables_electricity', 'renewables_share_elec',
-            'solar_electricity', 'solar_share_elec', 'wind_electricity', 'wind_share_elec'
-        ]
-        config = {'columns_to_keep': columns_to_keep, 'active_year': active_year, 'previous_year_range': previousYearRange}
+        logger.info(f"Config file not found. Creating new config.yaml with default settings.")
+        config = {'columns_to_keep': [], 'active_year': active_year, 'previous_year_range': previousYearRange}
         with open(config_path, 'w') as file:
             yaml.dump(config, file)
     return config
@@ -84,6 +73,8 @@ def load_main_dataset():
 # Step 5: Filter for relevant columns and drop rows with missing population or electricity_demand
 def filter_main_dataset(df, config):
     columns_to_keep = config['columns_to_keep']
+    if not columns_to_keep:
+        raise ValueError("'columns_to_keep' in config.yaml is empty. Please specify the columns to keep.")
     df_filtered = df[columns_to_keep].dropna(subset=['population', 'electricity_demand'])
     return df_filtered
 
