@@ -169,20 +169,18 @@ def rename_columns(df_latest, codebook_df):
 # Step 12: Main function
 def main():
     config = load_or_create_config()
+    
     # Download the datasets, decide whether to force update based on config
     download_datasets(config)
-    
-    download_energy_data()
-    config = load_or_create_config()
-    
-    # Ensure the output directory exists
-    output_dir = 'output'
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
 
+    # Load the main dataset
     df = load_main_dataset()
-    df_filtered = filter_main_dataset(df, config)
+
+    # Load the codebook
     codebook_df = pd.read_csv('owid-energy-codebook.csv')  # Load codebook if not already loaded
+
+    # Proceed with processing
+    df_filtered = filter_main_dataset(df, config)
     df_filtered = apply_unit_conversion(df_filtered, codebook_df)
     df_filtered = filter_year_range(df_filtered, config['active_year'], config['previous_year_range'])
     df_latest = prioritize_active_year(df_filtered)
@@ -192,7 +190,7 @@ def main():
     # Save the processed dataset
     try:
         logger.info("Saving processed energy data...")
-        df_latest.to_csv(os.path.join(output_dir, 'processed_energy_data.csv'), index=False)
+        df_latest.to_csv(os.path.join('output', 'processed_energy_data.csv'), index=False)
         logger.info("Processed energy data saved successfully to output/processed_energy_data.csv")
     except Exception as e:
         logger.error(f"Failed to save processed energy data: {e}")
