@@ -67,6 +67,17 @@ def fetch_gdp_data_range(country_code, start_year, end_year):
         logger.error(f"Failed to fetch GDP data for {country_code} from World Bank API, status code: {response.status_code}")
         return None
 
+import urllib.request
+
+# Step 4: Download and Load the main dataset
+def download_energy_data():
+    url = "https://raw.githubusercontent.com/owid/energy-data/refs/heads/master/owid-energy-data.csv"
+    output_path = "owid-energy-data.csv"
+    if not os.path.exists(output_path):
+        logger.info(f"Downloading {output_path}...")
+        urllib.request.urlretrieve(url, output_path)
+        logger.info(f"Downloaded {output_path}.")
+
 # Step 4: Load the main dataset
 def load_main_dataset():
     return pd.read_csv('owid-energy-data.csv', delimiter=',')
@@ -123,6 +134,8 @@ def rename_columns(df_latest, codebook_df):
 
 # Step 11: Main function
 def main():
+    # Download the dataset if not already available
+    download_energy_data()
     config = load_or_create_config()
     
     # Ensure the output directory exists
