@@ -61,8 +61,12 @@ def save_filtered_codebook(filtered_codebook):
     # Ensure the output directory exists
     if not os.path.exists('output'):
         os.makedirs('output')
-    filtered_codebook.to_csv(output_path, index=False)
-    logger.info(f"Filtered codebook saved to {output_path}")
+    logger.debug(f"Attempting to save the file to {output_path}. DataFrame shape: {filtered_codebook.shape}")
+    try:
+        filtered_codebook.to_csv(output_path, index=False)
+        logger.info(f"Filtered codebook saved to {output_path}")
+    except Exception as e:
+        logger.error(f"Failed to save the filtered codebook: {e}")
 
 # Step 9: Main function
 def main():
