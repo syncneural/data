@@ -20,10 +20,33 @@ jobs:
       with:
         python-version: 3.8
 
+    - name: Cache Python packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
         pip install pandas requests pyyaml
+
+    - name: Cache OS packages
+      id: os-cache
+      uses: actions/cache@v3
+      with:
+        path: /usr/local/lib
+        key: ${{ runner.os }}-os-packages-${{ hashFiles('os-packages.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-os-packages-
+
+    - name: Install OS dependencies
+      if: steps.os-cache.outputs.cache-hit != 'true'
+      run: |
+        sudo apt-get update
+        xargs -a os-packages.txt sudo apt-get install -y
 
     - name: Download datasets
       run: |
