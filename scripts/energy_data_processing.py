@@ -119,13 +119,17 @@ def filter_relevant_columns(df):
     # Dropping rows with missing population or electricity demand as countries without these values are not relevant to this dataset.
     return df_filtered
 
-# Step 11: Apply codebook-based unit conversion for TWh to kWh only
+# Step 11: Apply codebook-based unit conversion for TWh to kWh and percentages
 def apply_unit_conversion(df_filtered, codebook_df):
     for _, row in codebook_df.iterrows():
         col_name, unit = row['column'], row['unit']
-        if col_name in df_filtered.columns and isinstance(unit, str) and unit == "terawatt-hours":
-            df_filtered[col_name] = df_filtered[col_name].apply(lambda x: x * 1e9 if pd.notna(x) else x)  # Convert TWh to kWh
-            logger.info(f"Converted {col_name} from TWh to kWh")
+        if col_name in df_filtered.columns and isinstance(unit, str):
+            if unit == "terawatt-hours":
+                df_filtered[col_name] = df_filtered[col_name].apply(lambda x: x * 1e9 if pd.notna(x) else x)  # Convert TWh to kWh
+                logger.info(f"Converted {col_name} from TWh to kWh")
+            elif unit == "%":
+                df_filtered[col_name] = df_filtered[col_name].apply(lambda x: x / 100 if pd.notna(x) else x)  # Convert percentage to fraction
+                logger.info(f"Converted {col_name} from % to fraction")
     return df_filtered
 
 # Step 12: Filter for data within the specified year range
