@@ -61,7 +61,7 @@ def apply_transformations(filtered_codebook):
 # Step 8: Fix column names using utils.py
 from utils import transform_column_names
 
-def fix_column_names(filtered_codebook):
+def fix_column_names(filtered_codebook, codebook_df):
     filtered_codebook = transform_column_names(filtered_codebook, codebook_df)
     logger.info("Fixed column names using the utility function from utils.py.")
     return filtered_codebook
@@ -80,7 +80,7 @@ def main():
     filtered_codebook = filter_codebook(codebook_df, config)
     updated_codebook = update_codebook_with_processed_columns(filtered_codebook, processed_data_df)
     transformed_codebook = apply_transformations(updated_codebook)
-    transformed_codebook = fix_column_names(transformed_codebook)
+    transformed_codebook = fix_column_names(transformed_codebook, codebook_df)
     save_filtered_codebook(transformed_codebook)
 
 # Run main function
