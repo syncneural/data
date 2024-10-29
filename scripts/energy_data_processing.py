@@ -41,7 +41,7 @@ def load_or_create_config():
     return config
 
 # Step 3: Fetch the entire GDP data range for all countries at once
-def fetch_gdp_data_range(country_code, start_year, end_year):
+def fetch_gdp_data_range(country_code, start_year, end_year, result_dict, retry=3):
     """
     Fetches GDP data for a given country across a specified year range in a single API call.
 
@@ -49,9 +49,8 @@ def fetch_gdp_data_range(country_code, start_year, end_year):
         country_code (str): The ISO 3-letter country code.
         start_year (int): The starting year for the data range.
         end_year (int): The ending year for the data range.
-
-    Returns:
-        dict: A dictionary containing GDP data for each year in the range, with year as the key and GDP value as the value.
+        result_dict (dict): A dictionary to store the fetched GDP data.
+        retry (int): Number of retries in case of failure.
     """
     year_range = f"{start_year}:{end_year}"
     url = f"https://api.worldbank.org/v2/country/{country_code}/indicator/NY.GDP.MKTP.CD?date={year_range}&format=json"
@@ -65,10 +64,10 @@ def fetch_gdp_data_range(country_code, start_year, end_year):
                 gdp_value = item['value']
                 year = int(item['date'])
                 gdp_data[year] = gdp_value
-        return gdp_data
+        result_dict[country_code] = gdp_data
     else:
         logger.error(f"Failed to fetch GDP data for {country_code} from World Bank API, status code: {response.status_code}")
-        return None
+        result_dict[country_code] = None
 
 import urllib.request
 
@@ -169,32 +168,16 @@ def rename_columns(df_latest, codebook_df):
 # Step 12: Main function
 def main():
     config = load_or_create_config()
-    
     # Download the datasets, decide whether to force update based on config
     download_datasets(config)
+    
+    # Ensure the output directory exists
+    output_dir = 'output'
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
-    # Load the main dataset
     df = load_main_dataset()
-
-    # Load the codebook
-    codebook_df = pd.read_csv('owid-energy-codebook.csv')  # Load codebook if not already loaded
-
-    # Proceed with processing
     df_filtered = filter_main_dataset(df, config)
+    codebook_df = pd.read_csv('owid-energy-codebook.csv')  # Load codebook if not already loaded
     df_filtered = apply_unit_conversion(df_filtered, codebook_df)
-    df_filtered = filter_year_range(df_filtered, config['active_year'], config['previous_year_range'])
-    df_latest = prioritize_active_year(df_filtered)
-    df_latest = fill_gdp_using_world_bank(df_latest, config['active_year'], config['previous_year_range'])
-    df_latest = rename_columns(df_latest, codebook_df)
-
-    # Save the processed dataset
-    try:
-        logger.info("Saving processed energy data...")
-        df_latest.to_csv(os.path.join('output', 'processed_energy_data.csv'), index=False)
-        logger.info("Processed energy data saved successfully to output/processed_energy_data.csv")
-    except Exception as e:
-        logger.error(f"Failed to save processed energy data: {e}")
-
-# Run main function
-if __name__ == "__main__":
-    main()
+    df_filtered =
