@@ -48,11 +48,6 @@ jobs:
         sudo apt-get update
         xargs -a os-packages.txt sudo apt-get install -y
 
-    - name: Download datasets
-      run: |
-        wget -O owid-energy-data.csv "https://raw.githubusercontent.com/owid/energy-data/refs/heads/master/owid-energy-data.csv"
-        wget -O owid-energy-codebook.csv "https://raw.githubusercontent.com/owid/energy-data/refs/heads/master/owid-energy-codebook.csv"
-
     - name: Run energy data processing script
       run: |
         python scripts/energy_data_processing.py
@@ -67,6 +62,7 @@ jobs:
       run: |
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
-        git add .  # Add all files, including untracked ones
+        git add output/processed_energy_data.csv
+        git add output/codebook.csv
         git diff-index --quiet HEAD || git commit -m "Update processed energy data and codebook"  # Commit only if there are changes
         git push https://x-access-token:${GH_TOKEN}@github.com/syncneural/data.git HEAD:main
