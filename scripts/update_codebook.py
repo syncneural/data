@@ -61,10 +61,12 @@ def save_filtered_codebook(filtered_codebook):
     # Ensure the output directory exists
     if not os.path.exists('output'):
         os.makedirs('output')
-    filtered_codebook.to_csv(output_path, index=False)
+    with open(output_path, 'w') as file:
+        filtered_codebook.to_csv(file, index=False)
+        file.flush()
+        os.fsync(file.fileno())
     logger.info(f"Filtered codebook saved to {output_path}")
-    # Force flush to ensure the file is written to disk
-    os.sync()
+
 
 # Step 9: Main function
 def main():
