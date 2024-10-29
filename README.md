@@ -2,6 +2,8 @@
 
 This repository contains scripts and workflows designed to process energy data and update the associated codebook used for energy analysis. The goal of these scripts and automation tools is to provide meaningful insights into renewable energy usage and trends by collecting, cleaning, and enhancing energy datasets.
 
+![Energy Flow Diagram](https://syncneural.net/images/energy-flow-diagram.png)
+
 ## Files Included
 
 ### Python Scripts
@@ -22,6 +24,8 @@ This repository contains scripts and workflows designed to process energy data a
 ### Output Files
 - **output/processed_energy_data.csv**: Contains the processed and filtered energy data, ready for further analysis or import into spreadsheets such as Google Sheets.
 - **output/codebook.csv**: Contains the filtered energy codebook, focusing on key metrics of interest, providing context and descriptions for each metric.
+
+![Processed Energy Data Overview](https://syncneural.net/images/processed-energy-data.png)
 
 ### GitHub Actions Workflow
 - **.github/workflows/process_energy_data.yml**: This file defines a GitHub Actions workflow that automates the execution of both `energy_data_processing.py` and `update_codebook.py`. The workflow is set up to run automatically on a weekly basis (every Sunday at midnight) or can be manually triggered. The workflow completes the following tasks:
@@ -89,4 +93,6 @@ If you wish to contribute to this project, feel free to open a pull request or i
 
 ## Contact
 For any questions or issues, please reach out via the issues tab in this repository. Your feedback and contributions are welcome!
+
+![Energy Analysis Illustration](https://syncneural.net/images/energy-analysis-illustration.png)
 
