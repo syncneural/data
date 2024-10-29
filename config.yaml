@@ -42,4 +42,4 @@ columns_to_keep:
   - wind_share_elec
 
 active_year: 2022
-previousYearRange: 5
+previous_year_range: 5
