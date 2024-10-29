@@ -3,6 +3,7 @@ import pandas as pd
 import logging
 import yaml
 import re
+import os
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -57,6 +58,9 @@ def fix_column_names(filtered_codebook, codebook_df):
 # Step 8: Save the filtered, transformed, and updated codebook dataset
 def save_filtered_codebook(filtered_codebook):
     output_path = 'output/codebook.csv'
+    # Ensure the output directory exists
+    if not os.path.exists('output'):
+        os.makedirs('output')
     filtered_codebook.to_csv(output_path, index=False)
     logger.info(f"Filtered codebook saved to {output_path}")
 
