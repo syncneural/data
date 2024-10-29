@@ -1,82 +1,209 @@
 # Step 1: Import required libraries
 import pandas as pd
+import requests
 import logging
+import threading
+import time
+import os
 import yaml
-import re
-from utils import transform_column_names  # Import utility function for transforming column names
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger("CodebookUpdater")
+logger = logging.getLogger("EnergyDataProcessor")  # Set logger name to identify messages from this module
 
-# Step 2: Load configuration from config.yaml
-# If the config file does not exist, create one from the existing columns
+# Step 2: Configure pandas display settings for clarity
+def configure_pandas():
+    pd.set_option('display.float_format', '{:.0f}'.format)  # Show full numbers, no scientific notation
+    pd.set_option('display.max_rows', 250)  # Display up to 5 rows for brevity
+    pd.set_option('display.max_columns', None)  # Display all columns without truncation
 
-def load_or_create_config(codebook_df):
+# Step 3: Load configuration from config.yaml
+def load_config():
     config_path = 'config.yaml'
     try:
         with open(config_path, 'r') as file:
             config = yaml.safe_load(file)
     except FileNotFoundError:
-        logger.info(f"Config file not found. Creating new config.yaml with current columns.")
-        rows_to_keep = codebook_df['column'].unique().tolist()
-        config = {'columns_to_keep': rows_to_keep}
-        with open(config_path, 'w') as file:
-            yaml.dump(config, file)
+        logger.error("Config file not found. Please make sure config.yaml is available.")
+        raise
     return config
 
-# Step 3: Load the codebook dataset
-def load_codebook():
-    return pd.read_csv('owid-energy-codebook.csv')
+# Set the active year and previous year range from the configuration
+config = load_config()
+active_year = config['active_year']
+previousYearRange = config['previousYearRange']
 
-# Step 4: Load processed data to get column names
-def load_processed_data():
-    return pd.read_csv('output/processed_energy_data.csv')
+# Step 4: Pre-cache GDP data if it already exists
+def load_cached_gdp_data():
+    if os.path.exists("cached_gdp_data.csv"):
+        return pd.read_csv("cached_gdp_data.csv", index_col=0).to_dict(orient='index')
+    else:
+        return {}
 
-# Step 5: Match and update codebook with processed data column names
-def update_codebook_with_processed_columns(filtered_codebook, processed_data_df):
-    # Use the utility function to transform processed data columns to match codebook formatting
-    processed_columns = [transform_column_names(col) for col in processed_data_df.columns]
-    
-    for idx, col in enumerate(processed_data_df.columns):
-        transformed_col = processed_columns[idx]
-        if transformed_col in filtered_codebook['column'].values:
-            # Update codebook entries where the column matches
-            logger.info(f"Updating codebook for column: {col}")
-            filtered_codebook.loc[filtered_codebook['column'] == transformed_col, 'column'] = col
+# Step 5: Save cached GDP data
+def save_cached_gdp_data(gdp_data):
+    pd.DataFrame.from_dict(gdp_data, orient='index').to_csv("cached_gdp_data.csv")
+
+# Step 6: Fetch the GDP data for a specific country
+# Added backoff strategy for retrying requests
+def fetch_gdp_data_range(country_code, start_year, end_year, result_dict, retry=3):
+    """
+    Fetches GDP data for a given country across a specified year range in a single API call.
+
+    Args:
+        country_code (str): The ISO 3-letter country code.
+        start_year (int): The starting year for the data range.
+        end_year (int): The ending year for the data range.
+        result_dict (dict): A dictionary to store the fetched GDP data.
+        retry (int): Number of retries in case of failure.
+    """
+    year_range = f"{start_year}:{end_year}"
+    url = f"https://api.worldbank.org/v2/country/{country_code}/indicator/NY.GDP.MKTP.CD?date={year_range}&format=json"
+    backoff_time = 5
+    while retry > 0:
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            data = response.json()
+            gdp_data = {}
+            if len(data) > 1:
+                for item in data[1]:
+                    gdp_value = item['value']
+                    year = int(item['date'])
+                    gdp_data[year] = gdp_value
+            result_dict[country_code] = gdp_data
+            return
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Failed to fetch GDP data for {country_code} from World Bank API: {e}. Retries left: {retry-1}")
+            retry -= 1
+            time.sleep(backoff_time)  # Implement exponential backoff
+            backoff_time *= 2
+    result_dict[country_code] = None
+
+# Step 7: Download the main dataset and codebook if necessary
+# Added parallel download functionality
+def download_datasets():
+    urls = [
+        ("owid-energy-data.csv", "https://raw.githubusercontent.com/owid/energy-data/refs/heads/master/owid-energy-data.csv"),
+        ("owid-energy-codebook.csv", "https://raw.githubusercontent.com/owid/energy-data/refs/heads/master/owid-energy-codebook.csv")
+    ]
+
+    threads = []
+    for filename, url in urls:
+        thread = threading.Thread(target=download_file, args=(filename, url))
+        threads.append(thread)
+        thread.start()
+
+    for thread in threads:
+        thread.join()
+
+# Step 8: Function to download a file
+def download_file(filename, url):
+    try:
+        response = requests.get(url)
+        with open(filename, "wb") as f:
+            f.write(response.content)
+        logger.info(f"Downloaded {filename} successfully.")
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Failed to download {filename}: {e}")
+
+# Step 9: Load the main dataset
+def load_main_dataset():
+    return pd.read_csv('owid-energy-data.csv', delimiter=',')
+
+# Step 10: Load or update configuration, filter for relevant columns, and drop rows with missing population or electricity_demand
+def filter_relevant_columns(df):
+    config = load_config()
+    columns_to_keep = config['columns_to_keep']
+    df_filtered = df[columns_to_keep].dropna(subset=['population', 'electricity_demand'])
+    # Dropping rows with missing population or electricity demand as countries without these values are not relevant to this dataset.
+    return df_filtered
+
+# Step 11: Apply codebook-based unit conversion for TWh to kWh and percentages
+def apply_unit_conversion(df_filtered, codebook_df):
+    for _, row in codebook_df.iterrows():
+        col_name, unit = row['column'], row['unit']
+        if col_name in df_filtered.columns and isinstance(unit, str):
+            if unit == "terawatt-hours":
+                df_filtered[col_name] = df_filtered[col_name].apply(lambda x: x * 1e9 if pd.notna(x) else x)  # Convert TWh to kWh
+                logger.info(f"Converted {col_name} from TWh to kWh")
+            elif unit == "%":
+                df_filtered[col_name] = df_filtered[col_name].apply(lambda x: x / 100 if pd.notna(x) else x)  # Convert percentage to fraction
+                logger.info(f"Converted {col_name} from % to fraction")
+    return df_filtered
+
+# Step 12: Filter for data within the specified year range
+def filter_year_range(df_filtered):
+    df_filtered = df_filtered[(df_filtered['year'] >= active_year - previousYearRange) & (df_filtered['year'] <= active_year)]
+    df_filtered.loc[:, 'latest_data_year'] = df_filtered['year']  # Avoided SettingWithCopyWarning by using .loc[]
+    return df_filtered
+
+# Step 13: Prioritize data for the active year, if available; otherwise, use the latest year within the range
+def prioritize_active_year(df_filtered):
+    df_filtered = df_filtered.sort_values(by=['country', 'iso_code', 'year'], ascending=[True, True, False])
+    return df_filtered.groupby(['country', 'iso_code']).first().reset_index()
+
+# Step 14: Fill missing GDP data using the optimized approach
+# Now includes pre-caching of GDP data
+def fill_gdp_using_world_bank(df, gdp_results):
+    missing_gdp = df[df['gdp'].isna() & df['iso_code'].notna()]
+    threads = []
+    for index, row in missing_gdp.iterrows():
+        country_code = row['iso_code']
+        if country_code in gdp_results:  # Use cached data if available
+            continue
+        thread = threading.Thread(target=fetch_gdp_data_range, args=(country_code, active_year - previousYearRange, active_year, gdp_results))
+        threads.append(thread)
+        thread.start()
+
+    # Wait for all threads to complete
+    for thread in threads:
+        thread.join()
+
+    # Fill the GDP data from the results
+    for index, row in missing_gdp.iterrows():
+        country_code = row['iso_code']
+        gdp_data = gdp_results.get(country_code, None)
+        if gdp_data:
+            latest_year = max(gdp_data.keys())
+            df.loc[index, 'gdp'] = gdp_data[latest_year]  # Used .loc[] to ensure correct DataFrame modification
+            df.loc[index, 'latest_data_year'] = latest_year  # Used .loc[] to ensure correct DataFrame modification
+            logger.info(f"Filled GDP for {row['country']} using year: {latest_year}")
         else:
-            logger.warning(f"Column from processed data not found in codebook: {col}")
-    return filtered_codebook
+            logger.warning(f"No GDP data available within the specified range for {row['country']}")
+    return df
 
-# Step 6: Filter codebook dataset for relevant rows and output with all columns
-def filter_codebook(codebook_df, config):
-    rows_to_keep = config['columns_to_keep']
-    filtered_codebook = codebook_df[codebook_df['column'].isin(rows_to_keep)].copy()
-    return filtered_codebook
+# Step 15: Rename columns at the very end using the utility function from utils.py
+from utils import transform_column_names
 
-# Step 7: Apply transformations to the filtered codebook dataset
-def apply_transformations(filtered_codebook):
-    # Replace all instances of 'terawatt' with 'kilowatt' in both 'description' and 'unit' columns
-    filtered_codebook.loc[:, 'description'] = filtered_codebook['description'].apply(lambda x: re.sub(r'(?i)terawatt', 'kilowatt', x) if pd.notna(x) else x)
-    filtered_codebook.loc[:, 'unit'] = filtered_codebook['unit'].apply(lambda x: re.sub(r'(?i)terawatt', 'kilowatt', x) if pd.notna(x) else x)
-    logger.info("Applied transformation: Replaced 'terawatt' with 'kilowatt' in description and unit columns.")
-    return filtered_codebook
+def rename_columns(df_latest, codebook_df):
+    # Transform each column using the utility function
+    df_latest.columns = [transform_column_names(col) for col in df_latest.columns]
+    return df_latest
 
-# Step 8: Save the filtered and transformed codebook dataset
-def save_filtered_codebook(filtered_codebook):
-    output_path = 'output/codebook.csv'
-    filtered_codebook.to_csv(output_path, index=False)
-    logger.info(f"Filtered codebook saved to {output_path}")
-
-# Step 9: Main function
+# Step 16: Main execution function
 def main():
-    codebook_df = load_codebook()
-    processed_data_df = load_processed_data()
-    config = load_or_create_config(codebook_df)
-    filtered_codebook = filter_codebook(codebook_df, config)
-    updated_codebook = update_codebook_with_processed_columns(filtered_codebook, processed_data_df)
-    transformed_codebook = apply_transformations(updated_codebook)
-    save_filtered_codebook(transformed_codebook)
+    configure_pandas()
+    download_datasets()
+    df = load_main_dataset()
+    codebook_df = pd.read_csv('owid-energy-codebook.csv', delimiter=',')
+    df_filtered = filter_relevant_columns(df)
+    df_filtered = apply_unit_conversion(df_filtered, codebook_df)
+    df_filtered = filter_year_range(df_filtered)
+    df_latest = prioritize_active_year(df_filtered)
+
+    # Start filling missing GDP data in parallel for each country
+    gdp_results = load_cached_gdp_data()
+    df_latest = fill_gdp_using_world_bank(df_latest, gdp_results)
+    save_cached_gdp_data(gdp_results)
+
+    # Rename columns using codebook
+    df_latest = rename_columns(df_latest, codebook_df)
+
+    # Save the final DataFrame
+    output_path = 'output/processed_energy_data.csv'
+    df_latest.to_csv(output_path, index=False)
+    logger.info(f"Processed energy data saved to {output_path}")
 
 # Run main function
 if __name__ == "__main__":
