@@ -64,5 +64,9 @@ jobs:
         git config --global user.email "github-actions@github.com"
         git add output/processed_energy_data.csv
         git add output/codebook.csv
-        git diff-index --quiet HEAD || git commit -m "Update processed energy data and codebook"  # Commit only if there are changes
-        git push https://x-access-token:${GH_TOKEN}@github.com/syncneural/data.git HEAD:main
+        if ! git diff-index --quiet HEAD; then
+          git commit -m "Update processed energy data and codebook"
+          git push https://x-access-token:${GH_TOKEN}@github.com/syncneural/data.git HEAD:main
+        else
+          echo "No changes to commit"
+        fi
