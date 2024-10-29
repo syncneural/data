@@ -62,13 +62,17 @@ jobs:
       run: |
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
-        git add output/processed_energy_data.csv
-        git add output/codebook.csv
+        git add output/processed_energy_data.csv output/codebook.csv
 
-        # Check if there are any changes
-        if git diff-index --quiet HEAD; then
+        # Check if there are any staged changes and decide action accordingly
+        if git diff --cached --quiet; then
           echo "No changes detected, nothing to commit."
-          exit 0  # Exit gracefully with a success code
+        else
+          echo "Changes detected, committing and pushing..."
+          git commit -m "Update processed energy data and codebook"
+          # Use a more secure way to push without exposing the token
+          git push "https://${GH_TOKEN}@github.com/syncneural/data.git" HEAD:main
+          echo "Changes have been successfully pushed."
         fi
 
         echo "Changes detected, committing and pushing..."
