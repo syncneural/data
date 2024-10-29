@@ -32,9 +32,10 @@ def load_or_create_config():
             config.setdefault('previous_year_range', previousYearRange)
             config.setdefault('active_year', active_year)
             config.setdefault('columns_to_keep', [])
+            config.setdefault('force_update', True)
     except FileNotFoundError:
         logger.info(f"Config file not found. Creating new config.yaml with default settings.")
-        config = {'columns_to_keep': [], 'active_year': active_year, 'previous_year_range': previousYearRange}
+        config = {'columns_to_keep': [], 'active_year': active_year, 'previous_year_range': previousYearRange, 'force_update': True}
         with open(config_path, 'w') as file:
             yaml.dump(config, file)
     return config
@@ -72,7 +73,8 @@ def fetch_gdp_data_range(country_code, start_year, end_year):
 import urllib.request
 
 # Step 4: Download the datasets concurrently
-def download_datasets(force_update=True):
+def download_datasets(config):
+    force_update = config.get('force_update', True)
     urls = [
         ("owid-energy-data.csv", "https://raw.githubusercontent.com/owid/energy-data/refs/heads/master/owid-energy-data.csv"),
         ("owid-energy-codebook.csv", "https://raw.githubusercontent.com/owid/energy-data/refs/heads/master/owid-energy-codebook.csv")
@@ -166,9 +168,10 @@ def rename_columns(df_latest, codebook_df):
 
 # Step 12: Main function
 def main():
-    # Download the datasets, force update to get the latest versions
-    download_datasets(force_update=True)
-    download_datasets()
+    config = load_or_create_config()
+    # Download the datasets, decide whether to force update based on config
+    download_datasets(config)
+    
     download_energy_data()
     config = load_or_create_config()
     
