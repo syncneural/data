@@ -56,6 +56,11 @@ jobs:
       run: |
         python scripts/update_codebook.py
 
+    - name: Clean up unnecessary files
+      run: |
+        rm -rf owid-energy-data.csv
+        rm -rf owid-energy-codebook.csv
+
     - name: Commit and push changes
       env:
         GH_TOKEN: ${{ secrets.GH_TOKEN }}
@@ -75,14 +80,8 @@ jobs:
           echo "Changes have been successfully pushed."
         fi
 
-        echo "Changes detected, committing and pushing..."
-        git commit -m "Update processed energy data and codebook" || {
-          echo "Commit failed: No changes to commit."
-          exit 0  # Exit gracefully, as this is not an error case
-        }
-
-        git push https://x-access-token:${GH_TOKEN}@github.com/syncneural/data.git HEAD:main || {
-          echo "Push failed. Please check repository permissions and access tokens."
-          exit 1  # Exit with failure if push fails
-        }
-        echo "Changes have been successfully pushed."
+    - name: Post job cleanup
+      if: always()
+      run: |
+        echo "Running post-job cleanup to minimize workspace size..."
+        # Optionally clean up other temporary files here if necessary
