@@ -1,5 +1,3 @@
-# GitHub Actions Workflow to Run Energy Data Processing and Codebook Update
-
 name: Process Energy Data and Update Codebook
 
 on:
@@ -20,19 +18,10 @@ jobs:
       with:
         python-version: 3.8
 
-    - name: Cache Python packages
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install pandas requests pyyaml
-        xargs -a os-packages.txt sudo apt-get install -y
+        pip install -r requirements.txt
 
     - name: Run energy data processing script
       run: |
@@ -42,10 +31,9 @@ jobs:
       run: |
         python scripts/update_codebook.py
 
-    - name: Clean up unnecessary files
+    - name: List contents of output directory
       run: |
-        rm -rf owid-energy-data.csv
-        rm -rf owid-energy-codebook.csv
+        ls -la output/
 
     - name: Commit and push changes
       env:
@@ -57,12 +45,7 @@ jobs:
         git commit -m "Update processed energy data and codebook" || echo "Nothing to commit"
         git push
 
-    - name: List contents of output directory
+    - name: Clean up unnecessary files
       run: |
-        ls -la output/
-          
-    - name: Post job cleanup
-      if: always()
-      run: |
-        echo "Running post-job cleanup to minimize workspace size..."
-        # Optionally clean up other temporary files here if necessary
+        rm -rf owid-energy-data.csv
+        rm -rf owid-energy-codebook.csv
