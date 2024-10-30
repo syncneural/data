@@ -57,6 +57,10 @@ jobs:
         git commit -m "Update processed energy data and codebook" || echo "Nothing to commit"
         git push "https://${GH_TOKEN}@github.com/syncneural/data.git" HEAD:main || echo "No changes to push"
 
+    - name: List contents of output directory
+      run: |
+        ls -la output/
+          
     - name: Post job cleanup
       if: always()
       run: |
