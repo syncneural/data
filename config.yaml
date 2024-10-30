@@ -1,5 +1,5 @@
 # Corrected config.yaml file for energy data processing
-main_columns_to_keep:
+columns_to_keep:
   - country
   - iso_code
   - year
@@ -43,33 +43,5 @@ main_columns_to_keep:
   - wind_share_elec
 
 active_year: 2022
-previous_year_range: 5
+previousYearRange: 5
 force_update: true
-
-timeline_year_range:
-  start_year: 2010
-  end_year: 2022
-  
-timeline_main_columns_to_keep:
-  - country
-  - iso_code
-  - year
-  - population
-  - gdp
-  - biofuel_electricity
-  - carbon_intensity_elec
-  - coal_electricity
-  - electricity_demand
-  - electricity_generation
-  - fossil_electricity
-  - gas_electricity
-  - hydro_electricity
-  - low_carbon_electricity
-  - nuclear_electricity
-  - oil_electricity
-  - other_renewable_electricity
-  - other_renewable_exc_biofuel_electricity
-  - per_capita_electricity
-  - renewables_electricity
-  - solar_electricity
-  - wind_electricity
