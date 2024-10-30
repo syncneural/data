@@ -1,81 +1,87 @@
-# Step 1: Import required libraries
-import pandas as pd
-import logging
-import yaml
-import re
 import os
-import subprocess
-
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger("CodebookUpdater")
-
-# Step 2: Load configuration from config.yaml
-# If the config file does not exist, create one from the existing columns
-def load_or_create_config(codebook_df):
-    config_path = 'config.yaml'
-    try:
-        with open(config_path, 'r') as file:
-            config = yaml.safe_load(file)
-    except FileNotFoundError:
-        logger.info("Config file not found. Creating new config.yaml with current columns.")
-        rows_to_keep = codebook_df['column'].unique().tolist()
-        config = {'columns_to_keep': rows_to_keep}
-        with open(config_path, 'w') as file:
-            yaml.dump(config, file)
-    return config
-
-# Step 3: Load the codebook dataset
-def load_codebook():
-    return pd.read_csv('owid-energy-codebook.csv')
-
-# Step 4: Load processed data to get column names
-def load_processed_data():
-    return pd.read_csv('output/processed_energy_data.csv')
-
-# Step 5: Filter codebook dataset for relevant rows based on config
-def filter_codebook(codebook_df, config):
-    rows_to_keep = config['columns_to_keep']
-    filtered_codebook = codebook_df[codebook_df['column'].isin(rows_to_keep)].copy()
-    return filtered_codebook
-
-# Step 6: Apply transformations to the filtered codebook dataset
-def apply_transformations(filtered_codebook):
-    # Replace all instances of 'terawatt' with 'kilowatt' in both 'description' and 'unit' columns
-    filtered_codebook['description'] = filtered_codebook['description'].apply(lambda x: re.sub(r'(?i)terawatt', 'kilowatt', x) if pd.notna(x) else x)
-    filtered_codebook['unit'] = filtered_codebook['unit'].apply(lambda x: re.sub(r'(?i)terawatt', 'kilowatt', x) if pd.notna(x) else x)
-    logger.info("Applied transformation: Replaced 'terawatt' with 'kilowatt' in description and unit columns.")
-    return filtered_codebook
-
-# Step 7: Fix column names using utils.py
+import logging
+import pandas as pd
+import yaml
 from utils import transform_column_names
 
-def fix_column_names(filtered_codebook):
-    logger.info(f"Before fixing column names: {filtered_codebook['column'].tolist()}")
-    filtered_codebook = transform_column_names(filtered_codebook)
-    logger.info(f"After fixing column names: {filtered_codebook['column'].tolist()}")
-    logger.info("Fixed column names using the utility function from utils.py.")
+logger = logging.getLogger("CodebookUpdater")
+logging.basicConfig(level=logging.INFO)
+
+def load_codebook():
+    # Load the original codebook
+    codebook_df = pd.read_csv('owid-energy-codebook.csv')
+    return codebook_df
+
+def load_or_create_config(codebook_df):
+    config_path = 'config.yaml'
+    if os.path.exists(config_path):
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)
+            logger.info(f"Loaded configuration from {config_path}")
+    else:
+        # Default configuration if config.yaml does not exist
+        columns_to_keep = codebook_df['column'].tolist()
+        config = {
+            'columns_to_keep': columns_to_keep,
+            'active_year': 2022,
+            'previousYearRange': 5,
+            'force_update': True
+        }
+        with open(config_path, 'w') as f:
+            yaml.dump(config, f)
+            logger.info(f"Created default configuration at {config_path}")
+    return config
+
+def filter_codebook(codebook_df, config):
+    # Keep only the rows where 'column' is in config['columns_to_keep']
+    filtered_codebook = codebook_df[codebook_df['column'].isin(config['columns_to_keep'])].copy()
     return filtered_codebook
 
-# Step 8: Save the filtered, transformed, and updated codebook dataset
+def apply_transformations(filtered_codebook):
+    # Replace 'terawatt' with 'kilowatt' in 'description' and 'unit' columns
+    filtered_codebook['description'] = filtered_codebook['description'].str.replace(
+        r'(?i)terawatt', 'kilowatt', regex=True)
+    filtered_codebook['unit'] = filtered_codebook['unit'].str.replace(
+        r'(?i)terawatt', 'kilowatt', regex=True)
+    logger.info("Applied transformation: Replaced 'terawatt' with 'kilowatt' in description and unit columns.")
+
+    # Transform column names using utils.py
+    filtered_codebook = transform_column_names(filtered_codebook, is_codebook=True)
+
+    return filtered_codebook
+
+def sync_codebook_columns(filtered_codebook):
+    # Load processed data
+    processed_data = pd.read_csv('output/processed_energy_data.csv')
+    transformed_columns = processed_data.columns.tolist()
+
+    # Update the 'column' names in the codebook to match the processed data
+    if len(filtered_codebook) == len(transformed_columns):
+        filtered_codebook['column'] = transformed_columns
+    else:
+        logger.warning("Mismatch in number of columns between codebook and processed data.")
+        # Map existing columns
+        column_mapping = dict(zip(filtered_codebook['column'], transformed_columns))
+        filtered_codebook['column'] = filtered_codebook['column'].map(column_mapping)
+
+    return filtered_codebook
+
 def save_filtered_codebook(filtered_codebook):
-    output_path = 'output/codebook.csv'
-    # Ensure the output directory exists
-    if not os.path.exists('output'):
-        os.makedirs('output')
+    output_dir = 'output'
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    output_path = os.path.join(output_dir, 'codebook.csv')
     filtered_codebook.to_csv(output_path, index=False)
     logger.info(f"Filtered codebook saved to {output_path}")
 
-# Step 9: Main function
 def main():
     logger.info("Starting update_codebook script.")
     codebook_df = load_codebook()
     config = load_or_create_config(codebook_df)
     filtered_codebook = filter_codebook(codebook_df, config)
     transformed_codebook = apply_transformations(filtered_codebook)
-    transformed_codebook = fix_column_names(transformed_codebook)
+    transformed_codebook = sync_codebook_columns(transformed_codebook)
     save_filtered_codebook(transformed_codebook)
 
-# Run main function
 if __name__ == "__main__":
     main()
