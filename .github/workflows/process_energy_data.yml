@@ -49,13 +49,13 @@ jobs:
 
     - name: Commit and push changes
       env:
-        GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
         git add -f output/*.csv
         git commit -m "Update processed energy data and codebook" || echo "Nothing to commit"
-        git push "https://${GH_TOKEN}@github.com/syncneural/data.git" HEAD:main || echo "No changes to push"
+        git push
 
     - name: List contents of output directory
       run: |
