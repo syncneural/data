@@ -2,13 +2,32 @@ import os
 import logging
 import pandas as pd
 import yaml
+import requests
+import threading
 from utils import transform_column_names
 
 logger = logging.getLogger("EnergyDataProcessor")
 logging.basicConfig(level=logging.INFO)
 
+def download_datasets():
+    # Download datasets if they don't exist or if force_update is True
+    if not os.path.exists('owid-energy-data.csv'):
+        data_url = 'https://raw.githubusercontent.com/owid/energy-data/master/owid-energy-data.csv'
+        df = pd.read_csv(data_url)
+        df.to_csv('owid-energy-data.csv', index=False)
+        logger.info("Downloaded owid-energy-data.csv successfully.")
+    else:
+        logger.info("owid-energy-data.csv already exists.")
+
+    if not os.path.exists('owid-energy-codebook.csv'):
+        codebook_url = 'https://raw.githubusercontent.com/owid/energy-data/master/owid-energy-codebook.csv'
+        codebook_df = pd.read_csv(codebook_url)
+        codebook_df.to_csv('owid-energy-codebook.csv', index=False)
+        logger.info("Downloaded owid-energy-codebook.csv successfully.")
+    else:
+        logger.info("owid-energy-codebook.csv already exists.")
+
 def load_codebook():
-    # Load the original codebook
     codebook_df = pd.read_csv('owid-energy-codebook.csv')
     # Replace 'terawatt' with 'kilowatt' in 'unit' column
     codebook_df['unit'] = codebook_df['unit'].str.replace(
@@ -35,19 +54,18 @@ def load_or_create_config():
     return config
 
 def load_main_dataset():
-    # Assuming owid-energy-data.csv has been downloaded
     df = pd.read_csv('owid-energy-data.csv')
     return df
 
 def filter_main_dataset(df, config):
     # Keep only the columns specified in config['columns_to_keep']
     df_filtered = df[config['columns_to_keep']].copy()
-    # Drop rows with missing population or electricity_demand
-    df_filtered.dropna(subset=['population', 'electricity_demand'], inplace=True)
+    # Drop rows with missing population
+    df_filtered.dropna(subset=['population'], inplace=True)
     return df_filtered
 
 def apply_unit_conversion(df, codebook_df):
-    # Convert columns with 'kilowatt-hours' units
+    # Convert units based on codebook
     for idx, row in codebook_df.iterrows():
         col = row['column']
         unit = row['unit']
@@ -55,6 +73,10 @@ def apply_unit_conversion(df, codebook_df):
             if 'terawatt-hours' in unit.lower():
                 df[col] = df[col] * 1e9  # Convert TWh to kWh
                 logger.info(f"Converted {col} from TWh to kWh")
+            elif 'million tonnes' in unit.lower():
+                df[col] = df[col] * 1e6  # Convert million tonnes to tonnes
+                logger.info(f"Converted {col} from million tonnes to tonnes")
+            # Add other unit conversions as needed
     return df
 
 def filter_year_range(df, config):
@@ -65,15 +87,84 @@ def filter_year_range(df, config):
     return df_filtered
 
 def prioritize_active_year(df, config):
-    active_year = config['active_year']
     df = df.sort_values(['country', 'iso_code', 'year'], ascending=[True, True, False])
     df_latest = df.groupby(['country', 'iso_code']).first().reset_index()
+    df_latest['latest_data_year'] = df_latest['year']
     return df_latest
 
-def fill_gdp_using_world_bank(df_latest, config):
-    # Implement the logic to fill missing GDP values using World Bank data
-    # For simplicity, assume this function fills missing GDP values
-    return df_latest
+# Step 3: Fetch the entire GDP data range for all countries at once
+def fetch_gdp_data_range(country_code, start_year, end_year, result_dict, retry=3):
+    """
+    Fetches GDP data for a given country across a specified year range in a single API call.
+
+    Args:
+        country_code (str): The ISO 3-letter country code.
+        start_year (int): The starting year for the data range.
+        end_year (int): The ending year for the data range.
+        result_dict (dict): A dictionary to store the fetched GDP data.
+        retry (int): Number of retries in case of failure.
+    """
+    year_range = f"{start_year}:{end_year}"
+    url = f"https://api.worldbank.org/v2/country/{country_code}/indicator/NY.GDP.MKTP.CD?date={year_range}&format=json"
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            gdp_data = {}
+            if len(data) > 1 and data[1]:
+                for item in data[1]:
+                    gdp_value = item['value']
+                    year = int(item['date'])
+                    if gdp_value is not None:
+                        gdp_data[year] = gdp_value
+                result_dict[country_code] = gdp_data
+            else:
+                logger.error(f"No GDP data found for {country_code}")
+                result_dict[country_code] = None
+        else:
+            logger.error(f"Failed to fetch GDP data for {country_code} from World Bank API, status code: {response.status_code}")
+            result_dict[country_code] = None
+    except Exception as e:
+        logger.error(f"Exception occurred while fetching GDP data for {country_code}: {e}")
+        result_dict[country_code] = None
+
+# Step 10: Fill missing GDP data using a multithreaded approach
+def fill_gdp_using_world_bank(df, active_year, previousYearRange):
+    missing_gdp = df[df['gdp'].isna() & df['iso_code'].notna()]
+    threads = []
+    gdp_results = {}
+
+    for index, row in missing_gdp.iterrows():
+        country_code = row['iso_code']
+        thread = threading.Thread(target=fetch_gdp_data_range, args=(country_code, active_year - previousYearRange, active_year, gdp_results))
+        threads.append(thread)
+        thread.start()
+
+    # Wait for all threads to complete
+    for thread in threads:
+        thread.join()
+
+    # Fill the GDP data from the results
+    for index, row in missing_gdp.iterrows():
+        country_code = row['iso_code']
+        gdp_data = gdp_results.get(country_code, None)
+        if gdp_data:
+            latest_year = max(gdp_data.keys())
+            df.loc[index, 'gdp'] = gdp_data[latest_year]  # Use .loc[] to ensure correct DataFrame modification
+            df.loc[index, 'latest_data_year'] = latest_year
+            logger.info(f"Filled GDP for {row['country']} using year: {latest_year}")
+        else:
+            logger.warning(f"No GDP data available within the specified range for {row['country']}")
+    return df
+
+def calculate_per_capita_metrics(df):
+    # Calculate per capita values for energy consumption columns
+    energy_columns = [col for col in df.columns if 'consumption' in col.lower()]
+    for col in energy_columns:
+        per_capita_col = f"{col}_per_capita"
+        df[per_capita_col] = df[col] / df['population']
+        logger.info(f"Calculated {per_capita_col}")
+    return df
 
 def attach_units_to_df(df_latest, codebook_df):
     # Create a mapping from original column names to units
@@ -93,6 +184,8 @@ def rename_columns(df_latest, codebook_df):
 
 def main():
     logger.info("Starting energy data processing script.")
+    # Download datasets
+    download_datasets()
     # Load datasets
     codebook_df = load_codebook()
     config = load_or_create_config()
@@ -103,7 +196,10 @@ def main():
     df_filtered = apply_unit_conversion(df_filtered, codebook_df)
     df_filtered = filter_year_range(df_filtered, config)
     df_latest = prioritize_active_year(df_filtered, config)
-    df_latest = fill_gdp_using_world_bank(df_latest, config)
+
+    # Fill missing GDP data using the multithreaded approach
+    df_latest = fill_gdp_using_world_bank(df_latest, config['active_year'], config['previousYearRange'])
+    df_latest = calculate_per_capita_metrics(df_latest)
 
     # Attach units to df_latest
     df_latest = attach_units_to_df(df_latest, codebook_df)
