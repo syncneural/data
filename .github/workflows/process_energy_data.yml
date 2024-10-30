@@ -54,7 +54,14 @@ jobs:
         fi
 
     - name: Force add output files
-      run: git add -f output/processed_energy_data.csv output/codebook.csv
+      run: |
+        git add -f output/processed_energy_data.csv output/codebook.csv
+        git update-index --refresh
+
+    - name: Touch files to ensure modification
+      run: |
+        touch output/processed_energy_data.csv
+        touch output/codebook.csv
 
     - name: Debug Git Status
       run: git status
