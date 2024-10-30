@@ -17,8 +17,6 @@ def load_or_create_config(codebook_df):
     try:
         with open(config_path, 'r') as file:
             config = yaml.safe_load(file)
-            # Ensure columns_to_keep is present in the config, fallback to main_columns_to_keep if available
-            config.setdefault('columns_to_keep', config.get('main_columns_to_keep', codebook_df['column'].unique().tolist()))
     except FileNotFoundError:
         logger.info("Config file not found. Creating new config.yaml with current columns.")
         rows_to_keep = codebook_df['column'].unique().tolist()
