@@ -45,6 +45,14 @@ def apply_transformations(filtered_codebook):
         r'(?i)terawatt', 'kilowatt', regex=True)
     logger.info("Applied transformation: Replaced 'terawatt' with 'kilowatt' in description and unit columns.")
 
+    # Update descriptions for percentage columns
+    percentage_columns = filtered_codebook[filtered_codebook['unit'].str.contains('%', na=False)]['column'].tolist()
+    for col in percentage_columns:
+        idx = filtered_codebook[filtered_codebook['column'] == col].index[0]
+        original_description = filtered_codebook.at[idx, 'description']
+        filtered_codebook.at[idx, 'description'] = original_description + " (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)"
+        logger.info(f"Updated description for {col} to indicate percentage fraction.")
+
     # Transform column names using utils.py
     filtered_codebook = transform_column_names(filtered_codebook, is_codebook=True)
 
@@ -56,13 +64,19 @@ def sync_codebook_columns(filtered_codebook):
     transformed_columns = processed_data.columns.tolist()
 
     # Update the 'column' names in the codebook to match the processed data
-    if len(filtered_codebook) == len(transformed_columns):
-        filtered_codebook['column'] = transformed_columns
-    else:
-        logger.warning("Mismatch in number of columns between codebook and processed data.")
-        # Map existing columns
-        column_mapping = dict(zip(filtered_codebook['column'], transformed_columns))
-        filtered_codebook['column'] = filtered_codebook['column'].map(column_mapping)
+    codebook_columns = filtered_codebook['column'].tolist()
+    new_columns = [col for col in transformed_columns if col not in codebook_columns]
+
+    for col in new_columns:
+        # Add new rows for the new columns
+        filtered_codebook = pd.concat([filtered_codebook, pd.DataFrame({
+            'column': [col],
+            'description': ['Derived metric'],
+            'unit': [''],  # Specify unit if known
+            'source': ['Calculated']
+        })], ignore_index=True)
+
+    filtered_codebook['column'] = transformed_columns  # Ensure order matches
 
     return filtered_codebook
 
