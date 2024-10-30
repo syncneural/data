@@ -67,6 +67,17 @@ def save_filtered_codebook(filtered_codebook):
         os.fsync(file.fileno())
     logger.info(f"Filtered codebook saved to {output_path}")
 
+    # Commit and push changes to GitHub
+    os.system("git config --global user.name 'github-actions'")
+    os.system("git config --global user.email 'github-actions@github.com'")
+    os.system("git add output/codebook.csv")
+    commit_command = "git commit -m 'Update codebook'"
+    push_command = "git push https://x-access-token:${GH_TOKEN}@github.com/syncneural/data.git HEAD:main"
+    commit_result = os.system(commit_command)
+    if commit_result == 0:
+        os.system(push_command)
+    else:
+        logger.info("No changes detected, nothing to commit.")
 
 # Step 9: Main function
 def main():
