@@ -69,11 +69,12 @@ def sync_codebook_columns(filtered_codebook):
     # Load processed data
     processed_data = pd.read_csv('output/processed_energy_data.csv')
     transformed_columns = processed_data.columns.tolist()
-
+    
     # Update the 'column' names in the codebook to match the processed data
     codebook_columns = filtered_codebook['column'].tolist()
     new_columns = [col for col in transformed_columns if col not in codebook_columns]
-
+    
+    # Add new columns to the codebook
     for col in new_columns:
         # Add new rows for the new columns
         filtered_codebook = pd.concat([filtered_codebook, pd.DataFrame({
@@ -82,9 +83,10 @@ def sync_codebook_columns(filtered_codebook):
             'unit': [''],  # Specify unit if known
             'source': ['Calculated']
         })], ignore_index=True)
-
-    filtered_codebook['column'] = transformed_columns  # Ensure order matches
-
+    
+    # **Reorder the codebook to match the order of transformed_columns**
+    filtered_codebook = filtered_codebook.set_index('column').reindex(transformed_columns).reset_index()
+    
     return filtered_codebook
 
 def save_filtered_codebook(filtered_codebook):
