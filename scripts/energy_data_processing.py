@@ -169,11 +169,12 @@ def fill_gdp_using_world_bank(df, active_year, previousYearRange):
 def rename_columns(df, codebook_df):
     # Transform codebook_df first to update the column names
     transformed_codebook = transform_column_names(codebook_df)
-
+    
     # Now apply the renamed columns from transformed_codebook to df
     rename_map = dict(zip(codebook_df['column'], transformed_codebook['column']))
+    logger.info(f"Column rename mapping: {rename_map}")  # Add logging for rename map
+    
     df.rename(columns=rename_map, inplace=True)
-
     return df
 
 # Step 12: Generate and save the output datasets
