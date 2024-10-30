@@ -4,7 +4,7 @@ import pandas as pd
 import yaml
 import requests
 import threading
-from utils import transform_column_names
+from utils import transform_column_names, apply_unit_conversion
 
 logger = logging.getLogger("EnergyDataProcessor")
 logging.basicConfig(level=logging.INFO)
@@ -60,38 +60,6 @@ def filter_main_dataset(df, config):
     # Drop rows with missing population
     df_filtered.dropna(subset=['population'], inplace=True)
     return df_filtered
-
-def apply_unit_conversion(df, codebook_df):
-    # Filter codebook_df to include only columns present in df
-    codebook_df = codebook_df[codebook_df['column'].isin(df.columns)].reset_index(drop=True)
-    # Convert units based on codebook
-    for idx, row in codebook_df.iterrows():
-        col = row['column']
-        unit = row['unit']
-        if col in df.columns and isinstance(unit, str):
-            if 'terawatt-hours' in unit.lower():
-                df[col] = df[col] * 1e9  # Convert TWh to kWh
-                # Update the unit in the codebook
-                codebook_df.at[idx, 'unit'] = unit.lower().replace('terawatt-hours', 'kilowatt-hours')
-                logger.info(f"Converted {col} from TWh to kWh in dataset and updated unit in codebook.")
-            elif 'million tonnes' in unit.lower():
-                df[col] = df[col] * 1e6  # Convert million tonnes to tonnes
-                codebook_df.at[idx, 'unit'] = unit.lower().replace('million tonnes', 'tonnes')
-                logger.info(f"Converted {col} from million tonnes to tonnes in dataset and updated unit in codebook.")
-            # Add other unit conversions as needed
-    return df, codebook_df
-
-def convert_percentages_to_fractions(df, codebook_df):
-    # Filter codebook_df to include only columns present in df
-    codebook_df = codebook_df[codebook_df['column'].isin(df.columns)].reset_index(drop=True)
-    # Identify columns with '%' in their units
-    percentage_columns = codebook_df[codebook_df['unit'].str.contains('%', na=False)]['column'].tolist()
-    for col in percentage_columns:
-        if col in df.columns:
-            df[col] = (df[col] / 100.0).round(2)  # Convert percentage to fraction and round to 2 decimal places
-            logger.info(f"Converted {col} from percentage to fraction and rounded to 2 decimal places.")
-            # No change to unit; keep as '%'
-    return df, codebook_df
 
 def filter_year_range(df, config):
     active_year = config['active_year']
@@ -178,9 +146,8 @@ def round_numeric_columns(df):
     # Round specified columns to zero decimal places
     for col in columns_to_round_0:
         if col in df.columns:
-            df[col] = df[col].round(0).astype(int)
+            df[col] = df[col].round(0).astype('Int64')  # Use nullable integer type
             logger.info(f"Rounded {col} to zero decimal places.")
-
     return df
 
 def attach_units_to_df(df_latest, codebook_df):
@@ -211,6 +178,16 @@ def rename_columns(df_latest, codebook_df):
     df_latest.rename(columns=rename_map, inplace=True)
     return df_latest, codebook_df
 
+def convert_percentages_to_fractions(df, codebook_df):
+    # Identify columns with '%' in their units
+    percentage_columns = codebook_df[codebook_df['unit'].str.contains('%', na=False)]['column'].tolist()
+    for col in percentage_columns:
+        if col in df.columns:
+            df[col] = (df[col] / 100.0).round(2)  # Convert percentage to fraction and round to 2 decimal places
+            logger.info(f"Converted {col} from percentage to fraction and rounded to 2 decimal places.")
+            # No change to unit; keep as '%'
+    return df, codebook_df
+
 def main():
     logger.info("Starting energy data processing script.")
     # Download datasets
@@ -222,7 +199,10 @@ def main():
 
     # Apply transformations and filters
     df_filtered = filter_main_dataset(df, config)
-    df_filtered, codebook_df = apply_unit_conversion(df_filtered, codebook_df)
+    # Attach units to df_filtered before unit conversion
+    df_filtered = attach_units_to_df(df_filtered, codebook_df)
+    # Apply unit conversions
+    df_filtered = apply_unit_conversion(df_filtered)
     df_filtered, codebook_df = convert_percentages_to_fractions(df_filtered, codebook_df)
     df_filtered = filter_year_range(df_filtered, config)
     df_latest = prioritize_active_year(df_filtered, config)
@@ -232,9 +212,7 @@ def main():
     # Round specified numeric columns
     df_latest = round_numeric_columns(df_latest)
 
-    # Attach units to df_latest
-    df_latest = attach_units_to_df(df_latest, codebook_df)
-
+    # Units are already attached to df_latest
     # Rename columns
     df_latest, codebook_df = rename_columns(df_latest, codebook_df)
 
