@@ -158,15 +158,6 @@ def fill_gdp_using_world_bank(df, active_year, previousYearRange):
             logger.warning(f"No GDP data available within the specified range for {row['country']}")
     return df
 
-def calculate_per_capita_metrics(df):
-    # Calculate per capita values for energy consumption columns
-    energy_columns = [col for col in df.columns if 'consumption' in col.lower()]
-    for col in energy_columns:
-        per_capita_col = f"{col}_per_capita"
-        df[per_capita_col] = df[col] / df['population']
-        logger.info(f"Calculated {per_capita_col}")
-    return df
-
 def round_numeric_columns(df):
     # Define columns to round to zero decimal places
     columns_to_round_0 = ['population', 'gdp']
@@ -234,7 +225,6 @@ def main():
 
     # Fill missing GDP data using the multithreaded approach
     df_latest = fill_gdp_using_world_bank(df_latest, config['active_year'], config['previousYearRange'])
-    df_latest = calculate_per_capita_metrics(df_latest)
     # Round specified numeric columns
     df_latest = round_numeric_columns(df_latest)
 
