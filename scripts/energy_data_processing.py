@@ -10,7 +10,7 @@ logger = logging.getLogger("EnergyDataProcessor")
 logging.basicConfig(level=logging.INFO)
 
 def download_datasets():
-    # Download datasets if they don't exist or if force_update is True
+    # Download datasets if they don't exist
     if not os.path.exists('owid-energy-data.csv'):
         data_url = 'https://raw.githubusercontent.com/owid/energy-data/master/owid-energy-data.csv'
         df = pd.read_csv(data_url)
@@ -62,6 +62,8 @@ def filter_main_dataset(df, config):
     return df_filtered
 
 def apply_unit_conversion(df, codebook_df):
+    # Filter codebook_df to include only columns present in df
+    codebook_df = codebook_df[codebook_df['column'].isin(df.columns)].reset_index(drop=True)
     # Convert units based on codebook
     for idx, row in codebook_df.iterrows():
         col = row['column']
@@ -71,15 +73,17 @@ def apply_unit_conversion(df, codebook_df):
                 df[col] = df[col] * 1e9  # Convert TWh to kWh
                 # Update the unit in the codebook
                 codebook_df.at[idx, 'unit'] = unit.lower().replace('terawatt-hours', 'kilowatt-hours')
-                logger.info(f"Converted {col} from TWh to kWh and updated unit in codebook.")
+                logger.info(f"Converted {col} from TWh to kWh in dataset and updated unit in codebook.")
             elif 'million tonnes' in unit.lower():
                 df[col] = df[col] * 1e6  # Convert million tonnes to tonnes
                 codebook_df.at[idx, 'unit'] = unit.lower().replace('million tonnes', 'tonnes')
-                logger.info(f"Converted {col} from million tonnes to tonnes and updated unit in codebook.")
+                logger.info(f"Converted {col} from million tonnes to tonnes in dataset and updated unit in codebook.")
             # Add other unit conversions as needed
     return df, codebook_df
 
 def convert_percentages_to_fractions(df, codebook_df):
+    # Filter codebook_df to include only columns present in df
+    codebook_df = codebook_df[codebook_df['column'].isin(df.columns)].reset_index(drop=True)
     # Identify columns with '%' in their units
     percentage_columns = codebook_df[codebook_df['unit'].str.contains('%', na=False)]['column'].tolist()
     for col in percentage_columns:
