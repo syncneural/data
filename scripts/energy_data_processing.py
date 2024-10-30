@@ -29,9 +29,6 @@ def download_datasets():
 
 def load_codebook():
     codebook_df = pd.read_csv('owid-energy-codebook.csv')
-    # Replace 'terawatt' with 'kilowatt' in 'unit' column
-    codebook_df['unit'] = codebook_df['unit'].str.replace(
-        r'(?i)terawatt', 'kilowatt', regex=True)
     return codebook_df
 
 def load_or_create_config():
@@ -72,12 +69,27 @@ def apply_unit_conversion(df, codebook_df):
         if col in df.columns and isinstance(unit, str):
             if 'terawatt-hours' in unit.lower():
                 df[col] = df[col] * 1e9  # Convert TWh to kWh
-                logger.info(f"Converted {col} from TWh to kWh")
+                # Update the unit in the codebook
+                codebook_df.at[idx, 'unit'] = unit.lower().replace('terawatt-hours', 'kilowatt-hours')
+                logger.info(f"Converted {col} from TWh to kWh and updated unit in codebook.")
             elif 'million tonnes' in unit.lower():
                 df[col] = df[col] * 1e6  # Convert million tonnes to tonnes
-                logger.info(f"Converted {col} from million tonnes to tonnes")
+                codebook_df.at[idx, 'unit'] = unit.lower().replace('million tonnes', 'tonnes')
+                logger.info(f"Converted {col} from million tonnes to tonnes and updated unit in codebook.")
             # Add other unit conversions as needed
-    return df
+    return df, codebook_df
+
+def convert_percentages_to_fractions(df, codebook_df):
+    # Identify columns with '%' in their units
+    percentage_columns = codebook_df[codebook_df['unit'].str.contains('%', na=False)]['column'].tolist()
+    for col in percentage_columns:
+        if col in df.columns:
+            df[col] = df[col] / 100.0  # Convert percentage to fraction
+            # Update the unit in the codebook
+            idx = codebook_df[codebook_df['column'] == col].index[0]
+            codebook_df.at[idx, 'unit'] = 'fraction'
+            logger.info(f"Converted {col} from percentage to fraction and updated unit in codebook.")
+    return df, codebook_df
 
 def filter_year_range(df, config):
     active_year = config['active_year']
@@ -92,17 +104,9 @@ def prioritize_active_year(df, config):
     df_latest['latest_data_year'] = df_latest['year']
     return df_latest
 
-# Step 3: Fetch the entire GDP data range for all countries at once
 def fetch_gdp_data_range(country_code, start_year, end_year, result_dict, retry=3):
     """
     Fetches GDP data for a given country across a specified year range in a single API call.
-
-    Args:
-        country_code (str): The ISO 3-letter country code.
-        start_year (int): The starting year for the data range.
-        end_year (int): The ending year for the data range.
-        result_dict (dict): A dictionary to store the fetched GDP data.
-        retry (int): Number of retries in case of failure.
     """
     year_range = f"{start_year}:{end_year}"
     url = f"https://api.worldbank.org/v2/country/{country_code}/indicator/NY.GDP.MKTP.CD?date={year_range}&format=json"
@@ -128,7 +132,6 @@ def fetch_gdp_data_range(country_code, start_year, end_year, result_dict, retry=
         logger.error(f"Exception occurred while fetching GDP data for {country_code}: {e}")
         result_dict[country_code] = None
 
-# Step 10: Fill missing GDP data using a multithreaded approach
 def fill_gdp_using_world_bank(df, active_year, previousYearRange):
     missing_gdp = df[df['gdp'].isna() & df['iso_code'].notna()]
     threads = []
@@ -150,7 +153,7 @@ def fill_gdp_using_world_bank(df, active_year, previousYearRange):
         gdp_data = gdp_results.get(country_code, None)
         if gdp_data:
             latest_year = max(gdp_data.keys())
-            df.loc[index, 'gdp'] = gdp_data[latest_year]  # Use .loc[] to ensure correct DataFrame modification
+            df.loc[index, 'gdp'] = gdp_data[latest_year]
             df.loc[index, 'latest_data_year'] = latest_year
             logger.info(f"Filled GDP for {row['country']} using year: {latest_year}")
         else:
@@ -178,9 +181,25 @@ def rename_columns(df_latest, codebook_df):
     transformed_codebook = transform_column_names(codebook_df.copy(), is_codebook=True)
     # Create a mapping from original column names to transformed column names
     rename_map = dict(zip(codebook_df['column'], transformed_codebook['column']))
+    
+    # Handle 'latest_data_year' column
+    if 'latest_data_year' in df_latest.columns:
+        rename_map['latest_data_year'] = 'Latest Data Year'
+        # Add to codebook if not present
+        if 'latest_data_year' not in codebook_df['column'].values:
+            codebook_df = codebook_df.append({
+                'column': 'latest_data_year',
+                'description': 'Year of the latest data available for the country',
+                'unit': 'Year',
+                'source': 'Data processing'
+            }, ignore_index=True)
+            # Update transformed_codebook and rename_map
+            transformed_codebook = transform_column_names(codebook_df.copy(), is_codebook=True)
+            rename_map = dict(zip(codebook_df['column'], transformed_codebook['column']))
+    
     # Rename columns in df_latest using the mapping
     df_latest.rename(columns=rename_map, inplace=True)
-    return df_latest
+    return df_latest, codebook_df
 
 def main():
     logger.info("Starting energy data processing script.")
@@ -193,7 +212,8 @@ def main():
 
     # Apply transformations and filters
     df_filtered = filter_main_dataset(df, config)
-    df_filtered = apply_unit_conversion(df_filtered, codebook_df)
+    df_filtered, codebook_df = apply_unit_conversion(df_filtered, codebook_df)
+    df_filtered, codebook_df = convert_percentages_to_fractions(df_filtered, codebook_df)
     df_filtered = filter_year_range(df_filtered, config)
     df_latest = prioritize_active_year(df_filtered, config)
 
@@ -205,7 +225,7 @@ def main():
     df_latest = attach_units_to_df(df_latest, codebook_df)
 
     # Rename columns
-    df_latest = rename_columns(df_latest, codebook_df)
+    df_latest, codebook_df = rename_columns(df_latest, codebook_df)
 
     # Save the processed dataset
     output_dir = 'output'
