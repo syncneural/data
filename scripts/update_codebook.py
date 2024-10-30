@@ -66,19 +66,6 @@ def save_filtered_codebook(filtered_codebook):
     filtered_codebook.to_csv(output_path, index=False)
     logger.info(f"Filtered codebook saved to {output_path}")
 
-    # Commit and push changes to GitHub
-    try:
-        subprocess.run(["git", "config", "--global", "user.name", "github-actions"], check=True)
-        subprocess.run(["git", "config", "--global", "user.email", "github-actions@github.com"], check=True)
-        subprocess.run(["git", "add", "."], check=True)  # Add all files to ensure changes are captured
-        commit_result = subprocess.run(["git", "commit", "-m", "Update codebook"], check=True)
-        if commit_result.returncode == 0:
-            subprocess.run(["git", "push", f"https://x-access-token:${{GH_TOKEN}}@github.com/syncneural/data.git", "HEAD:main"], check=True)
-        else:
-            logger.info("No changes detected, nothing to commit.")
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Git command failed: {e}")
-
 # Step 9: Main function
 def main():
     logger.info("Starting update_codebook script.")
