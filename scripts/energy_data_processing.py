@@ -17,9 +17,6 @@ pd.set_option('display.float_format', '{:.0f}'.format)  # Show full numbers, no 
 pd.set_option('display.max_rows', 250)  # Display up to 250 rows for clarity
 pd.set_option('display.max_columns', None)  # Display all columns without truncation
 
-# Set the active year and previous year range
-active_year = 2022
-previousYearRange = 5
 
 # Step 2: Load configuration from config.yaml
 # If the config file does not exist, create one with the relevant keys
@@ -29,21 +26,21 @@ def load_or_create_config():
         with open(config_path, 'r') as file:
             config = yaml.safe_load(file)
             # Ensure all keys are present in the loaded config
-            config.setdefault('previous_year_range', previousYearRange)
-            config.setdefault('active_year', active_year)
-            config.setdefault('columns_to_keep', [])
+            config.setdefault('previous_year_range', config.get('previous_year_range', 5))
+            config.setdefault('active_year', config.get('active_year', 2022))
+            config.setdefault('main_columns_to_keep', [])
             config.setdefault('force_update', True)
             config.setdefault('timeline_year_range', {'start_year': 2000, 'end_year': 2022})
-            config.setdefault('timeline_columns_to_keep', [])
+            config.setdefault('timeline_main_columns_to_keep', [])
     except FileNotFoundError:
         logger.info(f"Config file not found. Creating new config.yaml with default settings.")
         config = {
-            'columns_to_keep': [],
-            'active_year': active_year,
-            'previous_year_range': previousYearRange,
+            'main_columns_to_keep': [],
+            'active_year': 2022,
+            'previous_year_range': 5,
             'force_update': True,
             'timeline_year_range': {'start_year': 2000, 'end_year': 2022},
-            'timeline_columns_to_keep': []
+            'timeline_main_columns_to_keep': []
         }
         with open(config_path, 'w') as file:
             yaml.dump(config, file)
@@ -112,10 +109,10 @@ def load_main_dataset():
     return pd.read_csv('owid-energy-data.csv', delimiter=',')
 
 # Step 6: Filter for relevant columns and drop rows with missing population or electricity_demand
-def filter_main_dataset(df, columns_to_keep):
-    if not columns_to_keep:
-        raise ValueError("'columns_to_keep' in config.yaml is empty. Please specify the columns to keep.")
-    df_filtered = df[columns_to_keep].dropna(subset=['population', 'electricity_demand'])
+def filter_dataset(df, columns_required):
+    if not columns_required:
+        raise ValueError(f"'{columns_required}' in config.yaml is empty. Please specify the correct columns to keep.")
+    df_filtered = df[columns_required].dropna(subset=['population', 'electricity_demand'])
     return df_filtered
 
 # Step 7: Apply codebook-based unit conversion for TWh to kWh only
@@ -192,9 +189,9 @@ def save_output_datasets(df, codebook_df, config, output_dir):
     # Generate the additional timeline dataset for broader year range
     start_year = config['timeline_year_range']['start_year']
     end_year = config['timeline_year_range']['end_year']
-    timeline_columns_to_keep = config['timeline_columns_to_keep']
+    columns_required = config['timeline_main_columns_to_keep']
     df_filtered_year_range = filter_year_range(df, start_year, end_year)
-    df_filtered_year_range = filter_main_dataset(df_filtered_year_range, timeline_columns_to_keep)
+    df_filtered_year_range = filter_dataset(df_filtered_year_range, columns_required)
     df_filtered_year_range = rename_columns(df_filtered_year_range, codebook_df)
     output_path_timeline = os.path.join(output_dir, f'processed_energy_data_{start_year}_{end_year}.csv')
     df_filtered_year_range.to_csv(output_path_timeline, index=False)
@@ -214,7 +211,7 @@ def main():
         os.makedirs(output_dir)
 
     df = load_main_dataset()
-    df_filtered = filter_main_dataset(df, config['columns_to_keep'])
+    df_filtered = filter_dataset(df, config['main_columns_to_keep'])
     codebook_df = pd.read_csv('owid-energy-codebook.csv')  # Load codebook if not already loaded
     df_filtered = apply_unit_conversion(df_filtered, codebook_df)
     
