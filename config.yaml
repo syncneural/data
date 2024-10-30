@@ -1,5 +1,5 @@
 # Corrected config.yaml file for energy data processing
-columns_to_keep:
+main_columns_to_keep:
   - country
   - iso_code
   - year
