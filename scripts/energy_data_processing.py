@@ -33,9 +33,18 @@ def load_or_create_config():
             config.setdefault('active_year', active_year)
             config.setdefault('columns_to_keep', [])
             config.setdefault('force_update', True)
+            config.setdefault('year_range', {'start_year': 2000, 'end_year': 2022})
+            config.setdefault('additional_columns_to_keep', [])
     except FileNotFoundError:
         logger.info(f"Config file not found. Creating new config.yaml with default settings.")
-        config = {'columns_to_keep': [], 'active_year': active_year, 'previous_year_range': previousYearRange, 'force_update': True}
+        config = {
+            'columns_to_keep': [],
+            'active_year': active_year,
+            'previous_year_range': previousYearRange,
+            'force_update': True,
+            'year_range': {'start_year': 2000, 'end_year': 2022},
+            'additional_columns_to_keep': []
+        }
         with open(config_path, 'w') as file:
             yaml.dump(config, file)
     return config
@@ -103,8 +112,7 @@ def load_main_dataset():
     return pd.read_csv('owid-energy-data.csv', delimiter=',')
 
 # Step 6: Filter for relevant columns and drop rows with missing population or electricity_demand
-def filter_main_dataset(df, config):
-    columns_to_keep = config['columns_to_keep']
+def filter_main_dataset(df, columns_to_keep):
     if not columns_to_keep:
         raise ValueError("'columns_to_keep' in config.yaml is empty. Please specify the columns to keep.")
     df_filtered = df[columns_to_keep].dropna(subset=['population', 'electricity_demand'])
@@ -120,8 +128,8 @@ def apply_unit_conversion(df_filtered, codebook_df):
     return df_filtered
 
 # Step 8: Filter for data within the specified year range and set 'latest_data_year'
-def filter_year_range(df_filtered, active_year, previousYearRange):
-    df_filtered = df_filtered[(df_filtered['year'] >= active_year - previousYearRange) & (df_filtered['year'] <= active_year)]
+def filter_year_range(df_filtered, start_year, end_year):
+    df_filtered = df_filtered[(df_filtered['year'] >= start_year) & (df_filtered['year'] <= end_year)]
     df_filtered['latest_data_year'] = df_filtered['year']
     return df_filtered
 
@@ -161,17 +169,38 @@ def fill_gdp_using_world_bank(df, active_year, previousYearRange):
     return df
 
 # Step 11: Rename columns as the final step using the utility function
-def rename_columns(df_latest, codebook_df):
+def rename_columns(df, codebook_df):
     # Transform codebook_df first to update the column names
     transformed_codebook = transform_column_names(codebook_df)
 
-    # Now apply the renamed columns from transformed codebook to df_latest
+    # Now apply the renamed columns from transformed codebook to df
     rename_map = dict(zip(codebook_df['column'], transformed_codebook['column']))
-    df_latest.rename(columns=rename_map, inplace=True)
+    df.rename(columns=rename_map, inplace=True)
 
-    return df_latest
+    return df
 
-# Step 12: Main function
+# Step 12: Generate and save the output datasets
+def save_output_datasets(df, codebook_df, config, output_dir):
+    # Generate the main dataset
+    df_latest = prioritize_active_year(df)
+    df_latest = fill_gdp_using_world_bank(df_latest, config['active_year'], config['previous_year_range'])
+    df_latest = rename_columns(df_latest, codebook_df)
+    output_path_main = os.path.join(output_dir, 'processed_energy_data.csv')
+    df_latest.to_csv(output_path_main, index=False)
+    logger.info(f"Processed energy data saved to {output_path_main}")
+
+    # Generate the additional dataset for broader year range
+    start_year = config['year_range']['start_year']
+    end_year = config['year_range']['end_year']
+    additional_columns_to_keep = config['additional_columns_to_keep']
+    df_filtered_year_range = filter_year_range(df, start_year, end_year)
+    df_filtered_year_range = df_filtered_year_range[additional_columns_to_keep]
+    df_filtered_year_range = rename_columns(df_filtered_year_range, codebook_df)
+    output_path_additional = os.path.join(output_dir, f'processed_energy_data_{start_year}_{end_year}.csv')
+    df_filtered_year_range.to_csv(output_path_additional, index=False)
+    logger.info(f"Processed energy data saved to {output_path_additional}")
+
+# Step 13: Main function
 def main():
     config = load_or_create_config()
     # Download the datasets, decide whether to force update based on config
@@ -183,18 +212,13 @@ def main():
         os.makedirs(output_dir)
 
     df = load_main_dataset()
-    df_filtered = filter_main_dataset(df, config)
+    df_filtered = filter_main_dataset(df, config['columns_to_keep'])
     codebook_df = pd.read_csv('owid-energy-codebook.csv')  # Load codebook if not already loaded
     df_filtered = apply_unit_conversion(df_filtered, codebook_df)
-    df_filtered = filter_year_range(df_filtered, config['active_year'], config['previous_year_range'])
-    df_latest = prioritize_active_year(df_filtered)
-    df_latest = fill_gdp_using_world_bank(df_latest, config['active_year'], config['previous_year_range'])
-    df_latest = rename_columns(df_latest, codebook_df)
+    df_filtered = filter_year_range(df_filtered, config['active_year'] - config['previous_year_range'], config['active_year'])
 
-    # Save the processed dataset
-    output_path = os.path.join(output_dir, 'processed_energy_data.csv')
-    df_latest.to_csv(output_path, index=False)
-    logger.info(f"Processed energy data saved to {output_path}")
+    # Generate and save the output datasets
+    save_output_datasets(df_filtered, codebook_df, config, output_dir)
 
 # Run main function
 if __name__ == "__main__":
