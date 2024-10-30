@@ -167,16 +167,20 @@ def rename_columns(df_latest, codebook_df):
             'source': ['Data processing']
         })
         codebook_df = pd.concat([codebook_df, new_row], ignore_index=True)
+    
+    # **Filter codebook_df to include only columns in df_latest**
+    codebook_df = codebook_df[codebook_df['column'].isin(df_latest.columns)].reset_index(drop=True)
 
     # Transform codebook_df to update the column names and units
     transformed_codebook = transform_column_names(codebook_df.copy(), is_codebook=True)
-
+    
     # Create a mapping from original column names to transformed column names
     rename_map = dict(zip(codebook_df['column'], transformed_codebook['column']))
-
+    
     # Rename columns in df_latest using the mapping
     df_latest.rename(columns=rename_map, inplace=True)
     return df_latest, codebook_df
+
 
 def convert_percentages_to_fractions(df, codebook_df):
     # Identify columns with '%' in their units
