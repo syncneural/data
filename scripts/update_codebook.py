@@ -8,7 +8,6 @@ logger = logging.getLogger("CodebookUpdater")
 logging.basicConfig(level=logging.INFO)
 
 def load_codebook():
-    # Load the original codebook
     codebook_df = pd.read_csv('owid-energy-codebook.csv')
     return codebook_df
 
@@ -38,20 +37,28 @@ def filter_codebook(codebook_df, config):
     return filtered_codebook
 
 def apply_transformations(filtered_codebook):
-    # Replace 'terawatt' with 'kilowatt' in 'description' and 'unit' columns
+    # Replace 'terawatt-hours' with 'kilowatt-hours' in 'description' and 'unit' columns
     filtered_codebook['description'] = filtered_codebook['description'].str.replace(
-        r'(?i)terawatt', 'kilowatt', regex=True)
+        r'(?i)terawatt-hours', 'kilowatt-hours', regex=True)
     filtered_codebook['unit'] = filtered_codebook['unit'].str.replace(
-        r'(?i)terawatt', 'kilowatt', regex=True)
-    logger.info("Applied transformation: Replaced 'terawatt' with 'kilowatt' in description and unit columns.")
+        r'(?i)terawatt-hours', 'kilowatt-hours', regex=True)
+    logger.info("Applied transformation: Replaced 'terawatt-hours' with 'kilowatt-hours' in description and unit columns.")
+
+    # Similarly for 'million tonnes' to 'tonnes'
+    filtered_codebook['description'] = filtered_codebook['description'].str.replace(
+        r'(?i)million tonnes', 'tonnes', regex=True)
+    filtered_codebook['unit'] = filtered_codebook['unit'].str.replace(
+        r'(?i)million tonnes', 'tonnes', regex=True)
+    logger.info("Applied transformation: Replaced 'million tonnes' with 'tonnes' in description and unit columns.")
 
     # Update descriptions for percentage columns
     percentage_columns = filtered_codebook[filtered_codebook['unit'].str.contains('%', na=False)]['column'].tolist()
     for col in percentage_columns:
         idx = filtered_codebook[filtered_codebook['column'] == col].index[0]
         original_description = filtered_codebook.at[idx, 'description']
-        filtered_codebook.at[idx, 'description'] = original_description + " (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)"
-        logger.info(f"Updated description for {col} to indicate percentage fraction.")
+        if "(Measured as a percentage fraction of 1" not in original_description:
+            filtered_codebook.at[idx, 'description'] = original_description + " (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)"
+            logger.info(f"Updated description for {col} to indicate percentage fraction.")
 
     # Transform column names using utils.py
     filtered_codebook = transform_column_names(filtered_codebook, is_codebook=True)
