@@ -50,7 +50,7 @@ timeline_year_range:
   start_year: 2010
   end_year: 2022
   
-timeline_columns_to_keep:
+timeline_main_columns_to_keep:
   - country
   - iso_code
   - year
