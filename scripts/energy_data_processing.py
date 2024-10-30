@@ -84,11 +84,9 @@ def convert_percentages_to_fractions(df, codebook_df):
     percentage_columns = codebook_df[codebook_df['unit'].str.contains('%', na=False)]['column'].tolist()
     for col in percentage_columns:
         if col in df.columns:
-            df[col] = df[col] / 100.0  # Convert percentage to fraction
-            # Update the unit in the codebook
-            idx = codebook_df[codebook_df['column'] == col].index[0]
-            codebook_df.at[idx, 'unit'] = 'fraction'
-            logger.info(f"Converted {col} from percentage to fraction and updated unit in codebook.")
+            df[col] = (df[col] / 100.0).round(2)  # Convert percentage to fraction and round to 2 decimal places
+            logger.info(f"Converted {col} from percentage to fraction and rounded to 2 decimal places.")
+            # No change to unit; keep as '%'
     return df, codebook_df
 
 def filter_year_range(df, config):
@@ -169,6 +167,27 @@ def calculate_per_capita_metrics(df):
         logger.info(f"Calculated {per_capita_col}")
     return df
 
+def round_numeric_columns(df):
+    # Define columns to round to zero decimal places
+    columns_to_round_0 = ['population', 'gdp']
+    # Add kWh columns
+    kwh_columns = [col for col in df.columns if 'kWh' in col or 'kilowatt-hours' in col]
+    columns_to_round_0.extend(kwh_columns)
+    # Add Carbon Intensity columns
+    carbon_intensity_columns = [col for col in df.columns if 'carbon_intensity' in col.lower() or 'carbon intensity' in col.lower()]
+    columns_to_round_0.extend(carbon_intensity_columns)
+
+    # Remove duplicates
+    columns_to_round_0 = list(set(columns_to_round_0))
+
+    # Round specified columns to zero decimal places
+    for col in columns_to_round_0:
+        if col in df.columns:
+            df[col] = df[col].round(0).astype(int)
+            logger.info(f"Rounded {col} to zero decimal places.")
+
+    return df
+
 def attach_units_to_df(df_latest, codebook_df):
     # Create a mapping from original column names to units
     unit_map = dict(zip(codebook_df['column'], codebook_df['unit']))
@@ -216,6 +235,8 @@ def main():
     # Fill missing GDP data using the multithreaded approach
     df_latest = fill_gdp_using_world_bank(df_latest, config['active_year'], config['previousYearRange'])
     df_latest = calculate_per_capita_metrics(df_latest)
+    # Round specified numeric columns
+    df_latest = round_numeric_columns(df_latest)
 
     # Attach units to df_latest
     df_latest = attach_units_to_df(df_latest, codebook_df)
