@@ -19,17 +19,20 @@ def transform_column_names(df, is_codebook=False):
 
     new_columns = []
     for idx, col_name in enumerate(columns):
+        original_col_name = col_name  # Keep the original for logging
         # Transform column name to Title Case and replace underscores
         new_col_name = col_name.replace("_", " ").title()
 
         # Correct specific cases after title casing
-        new_col_name = new_col_name.replace('Iso Code', 'ISO Code')
-        new_col_name = new_col_name.replace('Gdp', 'GDP')
-        new_col_name = new_col_name.replace('Co2', 'CO₂').replace('Co2e', 'CO₂e')
-
-        # Handle specific column names
-        if col_name == 'latest_data_year':
-            new_col_name = 'Latest Data Year'
+        replacements = {
+            'Iso Code': 'ISO Code',
+            'Gdp': 'GDP',
+            'Co2': 'CO₂',
+            'Co2e': 'CO₂e',
+            'Latest Data Year': 'Latest Data Year'
+        }
+        for old, new in replacements.items():
+            new_col_name = new_col_name.replace(old, new)
 
         # Append unit to the column name if needed
         unit = units[idx] if units else None
@@ -41,10 +44,8 @@ def transform_column_names(df, is_codebook=False):
                 new_col_name += ' kWh'
             elif 'gramsofco2equivalentsperkilowatt-hour' in normalized_unit:
                 new_col_name += ' gCO₂e/kWh'
-            elif 'fraction' in normalized_unit:
-                new_col_name += ' (fraction)'
             elif '%' in normalized_unit:
-                new_col_name += ' %'
+                new_col_name += ' %'  # Keep '%' unit
             elif 'international-$' in normalized_unit:
                 new_col_name += ' ISD'
             elif 'tonnes' in normalized_unit:
@@ -54,7 +55,7 @@ def transform_column_names(df, is_codebook=False):
             # Include other unit mappings as needed
 
         new_columns.append(new_col_name)
-        logger.info(f"Transformed '{col_name}' to '{new_col_name}'")
+        logger.info(f"Transformed '{original_col_name}' to '{new_col_name}'")
 
     if is_codebook:
         df['column'] = new_columns
