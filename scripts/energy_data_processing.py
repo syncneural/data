@@ -162,8 +162,14 @@ def fill_gdp_using_world_bank(df, active_year, previousYearRange):
 
 # Step 11: Rename columns as the final step using the utility function
 def rename_columns(df_latest, codebook_df):
-    # Properly pass the entire DataFrame and codebook to the transform function
-    return transform_column_names(df_latest, codebook_df)
+    # Transform codebook_df first to update the column names
+    transformed_codebook = transform_column_names(codebook_df)
+
+    # Now apply the renamed columns from transformed codebook to df_latest
+    rename_map = dict(zip(codebook_df['column'], transformed_codebook['column']))
+    df_latest.rename(columns=rename_map, inplace=True)
+
+    return df_latest
 
 # Step 12: Main function
 def main():
