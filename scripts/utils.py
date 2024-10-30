@@ -63,3 +63,26 @@ def transform_column_names(df, is_codebook=False):
         df.columns = new_columns
 
     return df
+
+def apply_unit_conversion(df):
+    """
+    Applies unit conversions to the DataFrame based on units in the codebook.
+    This function does not modify the codebook.
+    """
+    # Ensure units are attached to df
+    if not hasattr(df, 'units'):
+        logger.error("DataFrame does not have 'units' attribute. Please attach units before applying unit conversion.")
+        return df
+
+    for idx, col in enumerate(df.columns):
+        unit = df.units[idx]
+        if unit and isinstance(unit, str):
+            normalized_unit = unit.lower()
+            if 'terawatt-hours' in normalized_unit:
+                df[col] = df[col] * 1e9  # Convert TWh to kWh
+                logger.info(f"Converted {col} from TWh to kWh in dataset.")
+            elif 'million tonnes' in normalized_unit:
+                df[col] = df[col] * 1e6  # Convert million tonnes to tonnes
+                logger.info(f"Converted {col} from million tonnes to tonnes in dataset.")
+            # Add other unit conversions as needed
+    return df
