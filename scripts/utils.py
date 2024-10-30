@@ -15,7 +15,7 @@ def transform_column_names(df, is_codebook=False):
         units = df['unit'].tolist()
     else:
         columns = df.columns.tolist()
-        units = df.units if hasattr(df, 'units') else [None] * len(columns)  # Assuming units are provided or None
+        units = getattr(df, 'units', [None] * len(columns))  # Assuming units are provided or None
 
     new_columns = []
     for idx, col_name in enumerate(columns):
@@ -27,6 +27,10 @@ def transform_column_names(df, is_codebook=False):
         new_col_name = new_col_name.replace('Gdp', 'GDP')
         new_col_name = new_col_name.replace('Co2', 'CO₂').replace('Co2e', 'CO₂e')
 
+        # Handle specific column names
+        if col_name == 'latest_data_year':
+            new_col_name = 'Latest Data Year'
+
         # Append unit to the column name if needed
         unit = units[idx] if units else None
         if pd.notna(unit) and str(unit).strip():
@@ -37,10 +41,16 @@ def transform_column_names(df, is_codebook=False):
                 new_col_name += ' kWh'
             elif 'gramsofco2equivalentsperkilowatt-hour' in normalized_unit:
                 new_col_name += ' gCO₂e/kWh'
+            elif 'fraction' in normalized_unit:
+                new_col_name += ' (fraction)'
             elif '%' in normalized_unit:
                 new_col_name += ' %'
             elif 'international-$' in normalized_unit:
                 new_col_name += ' ISD'
+            elif 'tonnes' in normalized_unit:
+                new_col_name += ' tonnes'
+            elif 'year' in normalized_unit:
+                pass  # Do not append unit to year columns
             # Include other unit mappings as needed
 
         new_columns.append(new_col_name)
