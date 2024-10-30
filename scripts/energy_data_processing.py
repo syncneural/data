@@ -177,26 +177,22 @@ def attach_units_to_df(df_latest, codebook_df):
     return df_latest
 
 def rename_columns(df_latest, codebook_df):
+    # Add 'latest_data_year' to codebook if not present
+    if 'latest_data_year' not in codebook_df['column'].values:
+        new_row = pd.DataFrame({
+            'column': ['latest_data_year'],
+            'description': ['Year of the latest data available for the country'],
+            'unit': ['Year'],
+            'source': ['Data processing']
+        })
+        codebook_df = pd.concat([codebook_df, new_row], ignore_index=True)
+
     # Transform codebook_df to update the column names and units
     transformed_codebook = transform_column_names(codebook_df.copy(), is_codebook=True)
+
     # Create a mapping from original column names to transformed column names
     rename_map = dict(zip(codebook_df['column'], transformed_codebook['column']))
-    
-    # Handle 'latest_data_year' column
-    if 'latest_data_year' in df_latest.columns:
-        rename_map['latest_data_year'] = 'Latest Data Year'
-        # Add to codebook if not present
-        if 'latest_data_year' not in codebook_df['column'].values:
-            codebook_df = codebook_df.append({
-                'column': 'latest_data_year',
-                'description': 'Year of the latest data available for the country',
-                'unit': 'Year',
-                'source': 'Data processing'
-            }, ignore_index=True)
-            # Update transformed_codebook and rename_map
-            transformed_codebook = transform_column_names(codebook_df.copy(), is_codebook=True)
-            rename_map = dict(zip(codebook_df['column'], transformed_codebook['column']))
-    
+
     # Rename columns in df_latest using the mapping
     df_latest.rename(columns=rename_map, inplace=True)
     return df_latest, codebook_df
