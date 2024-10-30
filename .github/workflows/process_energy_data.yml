@@ -1,6 +1,6 @@
 # GitHub Actions Workflow to Run Energy Data Processing and Codebook Update
 
-name: Process Energy Data
+name: Process Energy Data and Update Codebook
 
 on:
   workflow_dispatch:  # Allows manual trigger of the workflow
@@ -47,11 +47,6 @@ jobs:
         rm -rf owid-energy-data.csv
         rm -rf owid-energy-codebook.csv
 
-    - name: Touch files to ensure modification
-      run: |
-        touch output/processed_energy_data.csv
-        touch output/codebook.csv
-
     - name: Commit and push changes
       env:
         GH_TOKEN: ${{ secrets.GH_TOKEN }}
@@ -69,6 +64,7 @@ jobs:
           # Use a more secure way to push without exposing the token
           git push "https://${GH_TOKEN}@github.com/syncneural/data.git" HEAD:main
           echo "Changes have been successfully pushed."
+        fi
 
     - name: Post job cleanup
       if: always()
