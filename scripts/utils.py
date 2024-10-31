@@ -12,7 +12,7 @@ def transform_column_names(df, is_codebook=False):
         units = df['unit'].tolist()
     else:
         columns = df.columns.tolist()
-        units = getattr(df, 'units', [None] * len(columns))
+        units = df.attrs.get('units', [None] * len(columns))
 
     new_columns = []
     for idx, col_name in enumerate(columns):
@@ -32,8 +32,8 @@ def transform_column_names(df, is_codebook=False):
             new_col_name = new_col_name.replace(old, new)
 
         unit = units[idx] if units else None
-        if pd.notna(unit) and str(unit).strip():
-            normalized_unit = re.sub(r'\s+', '', str(unit).lower()).strip()
+        if isinstance(unit, str) and unit.strip():
+            normalized_unit = re.sub(r'\s+', '', unit.lower()).strip()
             normalized_unit = normalized_unit.replace('co₂', 'co2')
 
             if 'kilowatt-hours' in normalized_unit:
