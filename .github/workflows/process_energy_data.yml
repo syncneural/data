@@ -42,11 +42,11 @@ jobs:
 
     - name: Run energy data processing script
       run: |
-        python scripts/energy_data_processing.py
+        python scripts/proc.py
 
-    - name: Run codebook update script
-      run: |
-        python scripts/update_codebook.py
+    # - name: Run codebook update script
+    #   run: |
+    #     python scripts/update_codebook.py
 
     - name: List contents of output directory after scripts run
       run: |

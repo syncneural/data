@@ -1,0 +1,131 @@
+column,description,unit,source
+Country,Country - Geographic location.,,Our World in Data - Regions (2023)
+Year,Year - Year of observation.,,Our World in Data - Regions (2023)
+ISO Code,ISO code - ISO 3166-1 alpha-3 three-letter country codes.,,International Organization for Standardization - Regions (2023)
+Population,"Population - Population by country, available from 10,000 BCE to 2100, based on data and estimates from different sources.",persons,Population based on various sources (2023) [https://ourworldindata.org/population-sources]
+GDP,Derived metric,,Calculated
+Biofuel Cons Change Pct,Derived metric,,Calculated
+Biofuel Cons Change Twh,Derived metric,,Calculated
+Biofuel Cons Per Capita,Derived metric,,Calculated
+Biofuel Consumption,Derived metric,,Calculated
+Biofuel Elec Per Capita,Derived metric,,Calculated
+Biofuel Electricity,Derived metric,,Calculated
+Biofuel Share Elec,Derived metric,,Calculated
+Biofuel Share Energy,Derived metric,,Calculated
+Carbon Intensity Elec,Derived metric,,Calculated
+Coal Cons Change Pct,Derived metric,,Calculated
+Coal Cons Change Twh,Derived metric,,Calculated
+Coal Cons Per Capita,Derived metric,,Calculated
+Coal Consumption,Derived metric,,Calculated
+Coal Elec Per Capita,Derived metric,,Calculated
+Coal Electricity,Derived metric,,Calculated
+Coal Prod Change Pct,Derived metric,,Calculated
+Coal Prod Change Twh,Derived metric,,Calculated
+Coal Prod Per Capita,Derived metric,,Calculated
+Coal Production,Derived metric,,Calculated
+Coal Share Elec,Derived metric,,Calculated
+Coal Share Energy,Derived metric,,Calculated
+Electricity Demand,Derived metric,,Calculated
+Electricity Demand Per Capita,Derived metric,,Calculated
+Electricity Generation,Derived metric,,Calculated
+Electricity Share Energy,Derived metric,,Calculated
+Energy Cons Change Pct,Derived metric,,Calculated
+Energy Cons Change Twh,Derived metric,,Calculated
+Energy Per Capita,Derived metric,,Calculated
+Energy Per GDP,Derived metric,,Calculated
+Fossil Cons Change Pct,Derived metric,,Calculated
+Fossil Cons Change Twh,Derived metric,,Calculated
+Fossil Elec Per Capita,Derived metric,,Calculated
+Fossil Electricity,Derived metric,,Calculated
+Fossil Energy Per Capita,Derived metric,,Calculated
+Fossil Fuel Consumption,Derived metric,,Calculated
+Fossil Share Elec,Derived metric,,Calculated
+Fossil Share Energy,Derived metric,,Calculated
+Gas Cons Change Pct,Derived metric,,Calculated
+Gas Cons Change Twh,Derived metric,,Calculated
+Gas Consumption,Derived metric,,Calculated
+Gas Elec Per Capita,Derived metric,,Calculated
+Gas Electricity,Derived metric,,Calculated
+Gas Energy Per Capita,Derived metric,,Calculated
+Gas Prod Change Pct,Derived metric,,Calculated
+Gas Prod Change Twh,Derived metric,,Calculated
+Gas Prod Per Capita,Derived metric,,Calculated
+Gas Production,Derived metric,,Calculated
+Gas Share Elec,Derived metric,,Calculated
+Gas Share Energy,Derived metric,,Calculated
+Greenhouse Gas Emissions,Derived metric,,Calculated
+Hydro Cons Change Pct,Derived metric,,Calculated
+Hydro Cons Change Twh,Derived metric,,Calculated
+Hydro Consumption,Derived metric,,Calculated
+Hydro Elec Per Capita,Derived metric,,Calculated
+Hydro Electricity,Derived metric,,Calculated
+Hydro Energy Per Capita,Derived metric,,Calculated
+Hydro Share Elec,Derived metric,,Calculated
+Hydro Share Energy,Derived metric,,Calculated
+Low Carbon Cons Change Pct,Derived metric,,Calculated
+Low Carbon Cons Change Twh,Derived metric,,Calculated
+Low Carbon Consumption,Derived metric,,Calculated
+Low Carbon Elec Per Capita,Derived metric,,Calculated
+Low Carbon Electricity,Derived metric,,Calculated
+Low Carbon Energy Per Capita,Derived metric,,Calculated
+Low Carbon Share Elec,Derived metric,,Calculated
+Low Carbon Share Energy,Derived metric,,Calculated
+Net Elec Imports,Derived metric,,Calculated
+Net Elec Imports Share Demand,Derived metric,,Calculated
+Nuclear Cons Change Pct,Derived metric,,Calculated
+Nuclear Cons Change Twh,Derived metric,,Calculated
+Nuclear Consumption,Derived metric,,Calculated
+Nuclear Elec Per Capita,Derived metric,,Calculated
+Nuclear Electricity,Derived metric,,Calculated
+Nuclear Energy Per Capita,Derived metric,,Calculated
+Nuclear Share Elec,Derived metric,,Calculated
+Nuclear Share Energy,Derived metric,,Calculated
+Oil Cons Change Pct,Derived metric,,Calculated
+Oil Cons Change Twh,Derived metric,,Calculated
+Oil Consumption,Derived metric,,Calculated
+Oil Elec Per Capita,Derived metric,,Calculated
+Oil Electricity,Derived metric,,Calculated
+Oil Energy Per Capita,Derived metric,,Calculated
+Oil Prod Change Pct,Derived metric,,Calculated
+Oil Prod Change Twh,Derived metric,,Calculated
+Oil Prod Per Capita,Derived metric,,Calculated
+Oil Production,Derived metric,,Calculated
+Oil Share Elec,Derived metric,,Calculated
+Oil Share Energy,Derived metric,,Calculated
+Other Renewable Consumption,Derived metric,,Calculated
+Other Renewable Electricity,Derived metric,,Calculated
+Other Renewable Exc Biofuel Electricity,Derived metric,,Calculated
+Other Renewables Cons Change Pct,Derived metric,,Calculated
+Other Renewables Cons Change Twh,Derived metric,,Calculated
+Other Renewables Elec Per Capita,Derived metric,,Calculated
+Other Renewables Elec Per Capita Exc Biofuel,Derived metric,,Calculated
+Other Renewables Energy Per Capita,Derived metric,,Calculated
+Other Renewables Share Elec,Derived metric,,Calculated
+Other Renewables Share Elec Exc Biofuel,Derived metric,,Calculated
+Other Renewables Share Energy,Derived metric,,Calculated
+Per Capita Electricity,Derived metric,,Calculated
+Primary Energy Consumption,Derived metric,,Calculated
+Renewables Cons Change Pct,Derived metric,,Calculated
+Renewables Cons Change Twh,Derived metric,,Calculated
+Renewables Consumption,Derived metric,,Calculated
+Renewables Elec Per Capita,Derived metric,,Calculated
+Renewables Electricity,Derived metric,,Calculated
+Renewables Energy Per Capita,Derived metric,,Calculated
+Renewables Share Elec,Derived metric,,Calculated
+Renewables Share Energy,Derived metric,,Calculated
+Solar Cons Change Pct,Derived metric,,Calculated
+Solar Cons Change Twh,Derived metric,,Calculated
+Solar Consumption,Derived metric,,Calculated
+Solar Elec Per Capita,Derived metric,,Calculated
+Solar Electricity,Derived metric,,Calculated
+Solar Energy Per Capita,Derived metric,,Calculated
+Solar Share Elec,Derived metric,,Calculated
+Solar Share Energy,Derived metric,,Calculated
+Wind Cons Change Pct,Derived metric,,Calculated
+Wind Cons Change Twh,Derived metric,,Calculated
+Wind Consumption,Derived metric,,Calculated
+Wind Elec Per Capita,Derived metric,,Calculated
+Wind Electricity,Derived metric,,Calculated
+Wind Energy Per Capita,Derived metric,,Calculated
+Wind Share Elec,Derived metric,,Calculated
+Wind Share Energy,Derived metric,,Calculated
