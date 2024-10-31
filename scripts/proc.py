@@ -135,6 +135,21 @@ def fill_gdp_using_world_bank(df, active_year, previousYearRange):
 
 # Apply unit conversion to dataset
 def apply_unit_conversion_script(df, codebook_df):
+    def apply_unit_conversion(df, codebook_df):
+        for idx, row in codebook_df.iterrows():
+            col = row['column']
+            unit = row['unit']
+            if col in df.columns and isinstance(unit, str):
+                normalized_unit = unit.lower()
+                if 'terawatt-hour' in normalized_unit or 'twh' in normalized_unit:
+                    df[col] = df[col] * 1e9  # Convert TWh to kWh
+                    logger.info(f"Converted '{col}' from TWh to kWh")
+                elif 'million tonne' in normalized_unit or 'million tonnes' in normalized_unit:
+                    df[col] = df[col] * 1e6  # Convert million tonnes to tonnes
+                    logger.info(f"Converted '{col}' from million tonnes to tonnes")
+                else:
+                    logger.info(f"No conversion needed for '{col}' with unit '{unit}'")
+        return df
     df = apply_unit_conversion(df, codebook_df)
     return df
 
@@ -280,12 +295,13 @@ def sync_codebook_columns(filtered_codebook):
         })], ignore_index=True)
 
     filtered_codebook = filtered_codebook.set_index('column').reindex(transformed_columns).reset_index()
+
     filtered_codebook['description'] = filtered_codebook['description'].fillna('No description available')
     filtered_codebook['unit'] = filtered_codebook['unit'].fillna('')
 
     return filtered_codebook
 
-# Save filtered codebook function
+# Save filtered codebook to output directory
 def save_filtered_codebook(filtered_codebook):
     output_dir = 'output'
     os.makedirs(output_dir, exist_ok=True)
@@ -298,6 +314,7 @@ def main():
     logger.info("Starting combined script.")
     download_datasets()
     config = load_or_create_config()
+
     df = load_main_dataset()
     df_filtered = filter_main_dataset(df, config)
     codebook_df = load_codebook()
@@ -305,18 +322,23 @@ def main():
     codebook_df = update_codebook_units_after_conversion(codebook_df)
     df_filtered = filter_year_range(df_filtered, config)
     df_latest = prioritize_active_year(df_filtered, config)
+
     df_latest = fill_gdp_using_world_bank(df_latest, config['active_year'], config['previousYearRange'])
+
+    # Rename columns to include 'kWh'
     df_latest = rename_columns(df_latest, codebook_df)
+
+    # Round numeric columns, now that 'kWh' is in the column names
     df_latest = round_numeric_columns(df_latest)
+
+    # Save processed energy data
     output_dir = 'output'
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, 'processed_energy_data.csv')
     df_latest.to_csv(output_path, index=False)
     logger.info(f"Processed energy data saved to {output_path}")
 
-    # Load codebook and apply transformations
-    config = load_or_create_config()
-    codebook_df = load_codebook()
+    # Update codebook
     codebook_df = apply_transformations(codebook_df)
     filtered_codebook = filter_codebook(codebook_df, config)
     transformed_codebook = transform_column_names(filtered_codebook.copy(), is_codebook=True)
