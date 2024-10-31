@@ -125,18 +125,17 @@ def fill_gdp_using_world_bank(df, active_year, previousYearRange):
 
 def attach_units_to_df(df, codebook_df):
     unit_map = dict(zip(codebook_df['column'], codebook_df['unit']))
-    df.units = [unit_map.get(col, None) for col in df.columns]
+    units = [unit_map.get(col, None) for col in df.columns]
+    df.attrs['units'] = units
     return df
 
 def round_numeric_columns(df):
     columns_to_round_0 = ['population', 'gdp']
 
-    if hasattr(df, 'units'):
-        kwh_columns = [col for col, unit in zip(df.columns, df.units) if unit and 'kilowatt-hours' in unit.lower()]
-        carbon_intensity_columns = [col for col, unit in zip(df.columns, df.units) if unit and 'gco₂e/kwh' in unit.lower()]
-    else:
-        kwh_columns = []
-        carbon_intensity_columns = []
+    units = df.attrs.get('units', [None]*len(df.columns))
+
+    kwh_columns = [col for col, unit in zip(df.columns, units) if isinstance(unit, str) and 'kilowatt-hours' in unit.lower()]
+    carbon_intensity_columns = [col for col, unit in zip(df.columns, units) if isinstance(unit, str) and 'gco₂e/kwh' in unit.lower()]
 
     columns_to_round_0.extend(kwh_columns)
     columns_to_round_0.extend(carbon_intensity_columns)
