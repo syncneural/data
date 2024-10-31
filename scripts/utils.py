@@ -38,7 +38,7 @@ def transform_column_names(df, is_codebook=False):
 
             if 'kilowatt-hours' in normalized_unit:
                 new_col_name += ' kWh'
-            elif 'gco2e/kwh' in normalized_unit or 'grams of co2 equivalents per kilowatt-hour' in normalized_unit:
+            elif 'gco2e/kwh' in normalized_unit or 'gramsofco2equivalentsperkilowatt-hour' in normalized_unit:
                 new_col_name += ' gCO₂e/kWh'
             elif '%' in normalized_unit:
                 new_col_name += ' %'
@@ -70,12 +70,12 @@ def apply_unit_conversion(df, codebook_df):
         unit = row['unit']
         if col in df.columns and isinstance(unit, str):
             normalized_unit = unit.lower()
-            if 'terawatt-hours' in normalized_unit:
+            if 'terawatt-hour' in normalized_unit or 'twh' in normalized_unit:
                 df[col] = df[col] * 1e9  # Convert TWh to kWh
-                logger.info(f"Converted {col} from TWh to kWh")
-            elif 'million tonnes' in normalized_unit:
+                logger.info(f"Converted '{col}' from TWh to kWh")
+            elif 'million tonne' in normalized_unit or 'million tonnes' in normalized_unit:
                 df[col] = df[col] * 1e6  # Convert million tonnes to tonnes
-                logger.info(f"Converted {col} from million tonnes to tonnes")
+                logger.info(f"Converted '{col}' from million tonnes to tonnes")
     return df
 
 def apply_transformations(codebook_df):
@@ -103,5 +103,5 @@ def apply_transformations(codebook_df):
             updated_description = re.sub(r'Measured as a percentage', '', original_description, flags=re.IGNORECASE).strip()
             updated_description += " (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)"
             codebook_df.at[idx, 'description'] = updated_description
-            logger.info(f"Updated description for {col} to indicate percentage fraction.")
+            logger.info(f"Updated description for '{col}' to indicate percentage fraction.")
     return codebook_df
