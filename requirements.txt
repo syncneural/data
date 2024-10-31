@@ -1,3 +1,6 @@
-pandas
-requests
+# requirements.txt
+
+polars
 pyyaml
+requests
+pytest
