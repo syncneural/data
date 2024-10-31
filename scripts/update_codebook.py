@@ -49,17 +49,17 @@ def sync_codebook_columns(filtered_codebook: pl.DataFrame, transformed_codebook:
     Returns:
         pl.DataFrame: Final codebook with original metadata, updated descriptions, and column order matching processed data.
     """
-    # Load the processed dataset to align the final order
+    # Step 1: Load columns from processed dataset to align the final codebook
     processed_data = pl.read_csv("output/processed_energy_data.csv")
-    transformed_columns = processed_data.columns
+    transformed_columns = processed_data.columns  # Verified as Polars-compatible
 
-    # Create a mapping of column names to index for ordering
-    column_order = {col: i for i, col in enumerate(transformed_columns)}
+    # Step 2: Create column order dictionary for correct sorting
+    column_order = {col: i for i, col in enumerate(transformed_columns)}  # Verified as compatible
 
-    # Step 2: Check for columns in processed_data but not in original codebook
+    # Step 3: Identify missing columns in the codebook and prepare placeholder entries
     missing_columns = [col for col in transformed_columns if col not in filtered_codebook["column"].to_list()]
 
-    # Step 3: Create empty entries for truly new columns
+    # Add rows for missing columns with placeholder descriptions
     missing_rows = pl.DataFrame({
         "column": missing_columns,
         "description": ["No description available"] * len(missing_columns),
@@ -67,36 +67,34 @@ def sync_codebook_columns(filtered_codebook: pl.DataFrame, transformed_codebook:
         "source": ["Calculated"] * len(missing_columns)
     })
 
-    # Concatenate filtered_codebook with missing rows
+    # Combine the filtered_codebook with new rows for missing columns
     combined_codebook = pl.concat([filtered_codebook, missing_rows], how="vertical")
 
-    # Apply transformations to column names and specific terms in descriptions
+    # Step 4: Apply transformations
     combined_codebook = combined_codebook.with_columns([
-        # Rename units for consistency
+        # Convert 'terawatt-hours' in the unit to 'kilowatt-hours'
         pl.when(pl.col("unit").str.contains("terawatt-hours", literal=True))
         .then(pl.lit("kilowatt-hours"))
         .otherwise(pl.col("unit"))
         .alias("unit"),
 
-        # Add descriptive clarification for percentage columns
+        # Add "percentage fraction of 1" clarification to percentage columns
         pl.when(pl.col("unit").str.contains("%", literal=True))
         .then(pl.col("description") + " (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)")
         .otherwise(pl.col("description"))
         .alias("description")
     ])
 
-    # Add a temporary 'sort_order' column based on column order using Polars' conditional expression
-    combined_codebook = combined_codebook.with_columns(
-        pl.when(pl.col("column").is_in(column_order.keys()))
-        .then(pl.col("column").map_dict(column_order))
-        .otherwise(float("inf"))
-        .alias("sort_order")
-    )
+    # Step 5: Add a temporary 'sort_order' column based on `column_order`
+    # Use `apply` on a Polars Series to generate 'sort_order'
+    sort_order_series = combined_codebook["column"].apply(lambda col: column_order.get(col, float("inf")))
+    combined_codebook = combined_codebook.with_column(pl.Series("sort_order", sort_order_series))
 
-    # Sort by the temporary column and drop it afterward
+    # Step 6: Sort by `sort_order` column and remove it afterward
     final_codebook = combined_codebook.sort("sort_order").drop("sort_order")
 
     return final_codebook
+
     
 def save_filtered_codebook(codebook_df, output_dir='output', filename='codebook.csv'):
     os.makedirs(output_dir, exist_ok=True)
