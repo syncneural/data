@@ -309,6 +309,11 @@ def save_filtered_codebook(filtered_codebook):
     filtered_codebook.to_csv(output_path, index=False)
     logger.info(f"Filtered codebook saved to {output_path}")
 
+# Filter codebook function
+def filter_codebook(codebook_df, config):
+    filtered_codebook = codebook_df[codebook_df['column'].isin(config['columns_to_keep'])].copy()
+    return filtered_codebook
+
 # Main function
 def main():
     logger.info("Starting combined script.")
