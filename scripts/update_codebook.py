@@ -75,12 +75,19 @@ def save_filtered_codebook(filtered_codebook: pl.DataFrame, output_dir: str = 'o
 
 def main():
     logger.info("Starting update_codebook script.")
+    
+    # Load codebook and config
     codebook_df = load_codebook()
     config = load_or_create_config(codebook_df)
-    codebook_df = apply_transformations(codebook_df)
+    
+    # Apply transformations and filter the codebook
     filtered_codebook = filter_codebook(codebook_df, config)
     transformed_codebook = transform_column_names(filtered_codebook, is_codebook=True)
-    transformed_codebook = sync_codebook_columns(transformed_codebook)
+    
+    # Ensure codebook contains all necessary columns from the processed dataset
+    transformed_codebook = sync_codebook_columns(filtered_codebook, transformed_codebook)
+    
+    # Save the updated codebook to the output directory
     save_filtered_codebook(transformed_codebook)
 
 if __name__ == "__main__":
