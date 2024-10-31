@@ -8,7 +8,6 @@ from utils import transform_column_names, apply_transformations
 
 logger = logging.getLogger("CodebookUpdater")
 logging.basicConfig(level=logging.INFO)
-import re
 
 def load_codebook():
     codebook_df = pd.read_csv('owid-energy-codebook.csv')
@@ -36,30 +35,6 @@ def load_or_create_config(codebook_df):
 def filter_codebook(codebook_df, config):
     filtered_codebook = codebook_df[codebook_df['column'].isin(config['columns_to_keep'])].copy()
     return filtered_codebook
-
-def apply_transformations(codebook_df):
-    codebook_df['description'] = codebook_df['description'].str.replace(
-        r'(?i)terawatt-hours', 'kilowatt-hours', regex=True)
-    codebook_df['unit'] = codebook_df['unit'].str.replace(
-        r'(?i)terawatt-hours', 'kilowatt-hours', regex=True)
-    logger.info("Applied transformation: Replaced 'terawatt-hours' with 'kilowatt-hours' in description and unit columns.")
-
-    codebook_df['description'] = codebook_df['description'].str.replace(
-        r'(?i)million tonnes', 'tonnes', regex=True)
-    codebook_df['unit'] = codebook_df['unit'].str.replace(
-        r'(?i)million tonnes', 'tonnes', regex=True)
-    logger.info("Applied transformation: Replaced 'million tonnes' with 'tonnes' in description and unit columns.")
-
-    percentage_columns = codebook_df[codebook_df['unit'].str.contains('%', na=False)]['column'].tolist()
-    for col in percentage_columns:
-        idx = codebook_df[codebook_df['column'] == col].index[0]
-        original_description = codebook_df.at[idx, 'description']
-        if "Measured as a percentage fraction of 1" not in original_description:
-            updated_description = re.sub(r'Measured as a percentage', '', original_description, flags=re.IGNORECASE).strip()
-            updated_description += " (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)"
-            codebook_df.at[idx, 'description'] = updated_description
-            logger.info(f"Updated description for {col} to indicate percentage fraction.")
-    return codebook_df
 
 def sync_codebook_columns(filtered_codebook):
     processed_data = pd.read_csv('output/processed_energy_data.csv')
