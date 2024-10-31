@@ -6,7 +6,7 @@ import pandas as pd
 import yaml
 import requests
 import threading
-from utils import transform_column_names
+from utils import transform_column_names, apply_unit_conversion, apply_transformations
 
 logger = logging.getLogger("EnergyDataProcessor")
 logging.basicConfig(level=logging.INFO)
@@ -127,13 +127,14 @@ def fill_gdp_using_world_bank(df, active_year, previousYearRange):
 
 def apply_unit_conversion(df):
     for col in df.columns:
-        unit = col.lower()
-        if 'twh' in unit:
-            df[col] = df[col] * 1e9  # Convert TWh to kWh
-            logger.info(f"Converted {col} from TWh to kWh")
-        elif 'million tonnes' in unit:
-            df[col] = df[col] * 1e6  # Convert million tonnes to tonnes
-            logger.info(f"Converted {col} from million tonnes to tonnes")
+        if df[col].dtype != 'object':
+            col_lower = col.lower()
+            if 'twh' in col_lower:
+                df[col] = df[col] * 1e9  # Convert TWh to kWh
+                logger.info(f"Converted {col} from TWh to kWh")
+            elif 'million tonnes' in col_lower:
+                df[col] = df[col] * 1e6  # Convert million tonnes to tonnes
+                logger.info(f"Converted {col} from million tonnes to tonnes")
     return df
 
 def round_numeric_columns(df):
