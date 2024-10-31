@@ -379,6 +379,9 @@ def main():
     df_timeline = filter_dataset_by_year_range(df, timeline_start_year, timeline_end_year)
     df_timeline = filter_dataset_columns(df_timeline, timeline_columns_to_keep)
 
+    # Apply unit conversion to timeline dataset
+    df_timeline = apply_unit_conversion_script(df_timeline, codebook_df)
+
     # Rename columns for timeline dataset
     df_timeline = rename_columns(df_timeline, codebook_df)
 
@@ -392,3 +395,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
