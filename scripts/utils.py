@@ -12,7 +12,7 @@ def transform_column_names(df, is_codebook=False):
         units = df['unit'].tolist()
     else:
         columns = df.columns.tolist()
-        units = [None] * len(columns)  # No units in df
+        units = getattr(df, 'units', [None] * len(columns))
 
     new_columns = []
     for idx, col_name in enumerate(columns):
@@ -41,13 +41,13 @@ def transform_column_names(df, is_codebook=False):
             elif 'gco2e/kwh' in normalized_unit or 'grams of co2 equivalents per kilowatt-hour' in normalized_unit:
                 new_col_name += ' gCO₂e/kWh'
             elif '%' in normalized_unit:
-                new_col_name += ' %'  # Keep '%' unit
+                new_col_name += ' %'
             elif 'international-$' in normalized_unit:
                 new_col_name += ' ISD'
             elif 'tonnes' in normalized_unit:
                 new_col_name += ' tonnes'
             elif 'year' in normalized_unit:
-                pass  # Do not append unit to year columns
+                pass
 
         new_columns.append(new_col_name)
         logger.info(f"Transformed '{original_col_name}' to '{new_col_name}'")
@@ -82,3 +82,19 @@ def apply_transformations(codebook_df):
             codebook_df.at[idx, 'description'] = updated_description
             logger.info(f"Updated description for {col} to indicate percentage fraction.")
     return codebook_df
+
+def apply_unit_conversion(df, codebook_df):
+    for idx, row in codebook_df.iterrows():
+        col = row['column']
+        unit = row['unit']
+        if col in df.columns and isinstance(unit, str):
+            normalized_unit = unit.lower()
+            if 'terawatt-hours' in normalized_unit:
+                df[col] = df[col] * 1e9  # Convert TWh to kWh
+                codebook_df.at[idx, 'unit'] = normalized_unit.replace('terawatt-hours', 'kilowatt-hours')
+                logger.info(f"Converted {col} from TWh to kWh in dataset and updated unit in codebook.")
+            elif 'million tonnes' in normalized_unit:
+                df[col] = df[col] * 1e6  # Convert million tonnes to tonnes
+                codebook_df.at[idx, 'unit'] = normalized_unit.replace('million tonnes', 'tonnes')
+                logger.info(f"Converted {col} from million tonnes to tonnes in dataset and updated unit in codebook.")
+    return df, codebook_df
