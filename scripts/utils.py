@@ -7,11 +7,11 @@ import polars as pl
 logger = logging.getLogger("Utils")
 logger.setLevel(logging.DEBUG)
 
-# Console handler for logging
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
 formatter = logging.Formatter('[%(levelname)s] %(name)s - %(message)s')
 ch.setFormatter(formatter)
+
 if not logger.hasHandlers():
     logger.addHandler(ch)
 
@@ -63,14 +63,17 @@ def transform_column_names(df: pl.DataFrame, is_codebook: bool = False) -> pl.Da
                 new_col_name += ' %'
             elif 'international-$' in normalized_unit:
                 new_col_name += ' ISD'
+            elif 'tonnes' in normalized_unit:
+                new_col_name += ' tonnes'
             elif 'year' in normalized_unit:
-                pass  # Do not append unit to year columns
+                pass
 
         new_columns.append(new_col_name)
         logger.debug(f"Transformed '{original_col_name}' to '{new_col_name}'")
 
+    # Ensure transformed column names do not duplicate existing ones
     if is_codebook:
-        df_transformed = df.with_columns([
+        df_transformed = df.drop(["column"]).with_columns([
             pl.lit(new_columns[idx]).alias("column") for idx in range(len(new_columns))
         ])
     else:
@@ -102,6 +105,7 @@ def apply_unit_conversion(df: pl.DataFrame, codebook_df: pl.DataFrame) -> pl.Dat
                 logger.debug(f"Converted '{col}' from TWh to kWh")
     return df_converted
 
+
 def update_codebook_units(codebook_df: pl.DataFrame) -> pl.DataFrame:
     """
     Updates the 'unit' field in the codebook DataFrame from 'terawatt-hours' or 'TWh' to 'kilowatt-hours'.
@@ -125,6 +129,7 @@ def update_codebook_units(codebook_df: pl.DataFrame) -> pl.DataFrame:
         logger.debug("Updated units from 'terawatt-hours' to 'kilowatt-hours'")
     
     return codebook_updated
+
 
 def apply_transformations(codebook_df: pl.DataFrame) -> pl.DataFrame:
     """
