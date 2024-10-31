@@ -51,7 +51,7 @@ def sync_codebook_columns(filtered_codebook: pl.DataFrame, processed_data: pl.Da
     """
 
     # Update the 'column' column of the original codebook with the column names from the processed data
-    filtered_codebook = filtered_codebook.assign(column=processed_data.columns)
+    filtered_codebook = filtered_codebook.set_item("column", processed_data.columns)
 
     # Apply any necessary transformations to descriptions and units, if needed
     # ... (your transformation logic here)
