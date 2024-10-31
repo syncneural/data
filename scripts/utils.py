@@ -12,7 +12,7 @@ def transform_column_names(df, is_codebook=False):
         units = df['unit'].tolist()
     else:
         columns = df.columns.tolist()
-        units = df.attrs.get('units', [None] * len(columns))
+        units = [None] * len(columns)  # No units in df
 
     new_columns = []
     for idx, col_name in enumerate(columns):
@@ -47,7 +47,7 @@ def transform_column_names(df, is_codebook=False):
             elif 'tonnes' in normalized_unit:
                 new_col_name += ' tonnes'
             elif 'year' in normalized_unit:
-                pass
+                pass  # Do not append unit to year columns
 
         new_columns.append(new_col_name)
         logger.info(f"Transformed '{original_col_name}' to '{new_col_name}'")
@@ -59,7 +59,25 @@ def transform_column_names(df, is_codebook=False):
 
     return df
 
+def apply_unit_conversion(df):
+    """
+    Applies unit conversions to the DataFrame based on column names containing units.
+    """
+    for col in df.columns:
+        col_lower = col.lower()
+        if 'twh' in col_lower:
+            df[col] = df[col] * 1e9  # Convert TWh to kWh
+            logger.info(f"Converted {col} from TWh to kWh")
+        elif 'million tonnes' in col_lower:
+            df[col] = df[col] * 1e6  # Convert million tonnes to tonnes
+            logger.info(f"Converted {col} from million tonnes to tonnes")
+    return df
+
 def apply_transformations(codebook_df):
+    """
+    Apply transformations to codebook DataFrame.
+    This function is only used in update_codebook.py.
+    """
     codebook_df['description'] = codebook_df['description'].str.replace(
         r'(?i)terawatt-hours', 'kilowatt-hours', regex=True)
     codebook_df['unit'] = codebook_df['unit'].str.replace(
@@ -82,19 +100,3 @@ def apply_transformations(codebook_df):
             codebook_df.at[idx, 'description'] = updated_description
             logger.info(f"Updated description for {col} to indicate percentage fraction.")
     return codebook_df
-
-def apply_unit_conversion(df, codebook_df):
-    for idx, row in codebook_df.iterrows():
-        col = row['column']
-        unit = row['unit']
-        if col in df.columns and isinstance(unit, str):
-            normalized_unit = unit.lower()
-            if 'terawatt-hours' in normalized_unit:
-                df[col] = df[col] * 1e9  # Convert TWh to kWh
-                codebook_df.at[idx, 'unit'] = normalized_unit.replace('terawatt-hours', 'kilowatt-hours')
-                logger.info(f"Converted {col} from TWh to kWh in dataset and updated unit in codebook.")
-            elif 'million tonnes' in normalized_unit:
-                df[col] = df[col] * 1e6  # Convert million tonnes to tonnes
-                codebook_df.at[idx, 'unit'] = normalized_unit.replace('million tonnes', 'tonnes')
-                logger.info(f"Converted {col} from million tonnes to tonnes in dataset and updated unit in codebook.")
-    return df, codebook_df
