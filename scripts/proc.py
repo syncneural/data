@@ -191,6 +191,28 @@ def round_numeric_columns(df):
         if col in df.columns:
             df[col] = df[col].round(0).astype('Int64')
             logger.info(f"Rounded '{col}' to zero decimal places.")
+        columns_to_round_0 = ['Population', 'GDP ISD']
+
+    kwh_columns = [col for col in df.columns if 'kwh' in col.lower()]
+    carbon_intensity_columns = [col for col in df.columns if 'gco₂e/kwh' in col.lower() or 'gco2e/kwh' in col.lower()]
+
+    columns_to_round_0.extend(kwh_columns)
+    columns_to_round_0.extend(carbon_intensity_columns)
+    columns_to_round_0 = list(set(columns_to_round_0))
+
+    for col in columns_to_round_0:
+        if col in df.columns:
+            df[col] = df[col].round(0).astype('Int64')
+            logger.info(f"Rounded '{col}' to zero decimal places.")
+    
+    percentage_columns = [col for col in df.columns if '%' in col.lower()]
+
+    for col in percentage_columns:
+        if col in df.columns:
+            df[col] = df[col] / 100.0  # Convert to fraction of 1
+            df[col] = df[col].round(2)  # Round to two decimal places
+            logger.info(f"Converted percentage column '{col}' to fraction of 1 and rounded to 2 decimal places.")
+
     return df
 
 # Rename columns based on codebook
