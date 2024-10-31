@@ -1,43 +1,84 @@
 column,description,unit,source
-Country,Derived metric,,Calculated
-ISO Code,Derived metric,,Calculated
-Year,Derived metric,,Calculated
-Population,Derived metric,,Calculated
-GDP ISD,Derived metric,,Calculated
-Biofuel Electricity kWh,Derived metric,,Calculated
-Biofuel Share Elec %,Derived metric,,Calculated
-Carbon Intensity Elec gCO₂e/kWh,Derived metric,,Calculated
-Coal Electricity kWh,Derived metric,,Calculated
-Coal Share Elec %,Derived metric,,Calculated
-Electricity Demand kWh,Derived metric,,Calculated
-Electricity Generation kWh,Derived metric,,Calculated
-Electricity Share Energy %,Derived metric,,Calculated
-Fossil Elec Per Capita kWh,Derived metric,,Calculated
-Fossil Electricity kWh,Derived metric,,Calculated
-Fossil Share Elec %,Derived metric,,Calculated
-Gas Electricity kWh,Derived metric,,Calculated
-Gas Share Elec %,Derived metric,,Calculated
-Hydro Electricity kWh,Derived metric,,Calculated
-Hydro Share Elec %,Derived metric,,Calculated
-Low Carbon Elec Per Capita kWh,Derived metric,,Calculated
-Low Carbon Electricity kWh,Derived metric,,Calculated
-Low Carbon Share Elec %,Derived metric,,Calculated
-Nuclear Electricity kWh,Derived metric,,Calculated
-Nuclear Share Elec %,Derived metric,,Calculated
-Oil Electricity kWh,Derived metric,,Calculated
-Oil Share Elec %,Derived metric,,Calculated
-Other Renewable Electricity kWh,Derived metric,,Calculated
-Other Renewable Exc Biofuel Electricity kWh,Derived metric,,Calculated
-Other Renewables Elec Per Capita kWh,Derived metric,,Calculated
-Other Renewables Elec Per Capita Exc Biofuel kWh,Derived metric,,Calculated
-Other Renewables Share Elec %,Derived metric,,Calculated
-Other Renewables Share Elec Exc Biofuel %,Derived metric,,Calculated
-Per Capita Electricity kWh,Derived metric,,Calculated
-Renewables Elec Per Capita kWh,Derived metric,,Calculated
-Renewables Electricity kWh,Derived metric,,Calculated
-Renewables Share Elec %,Derived metric,,Calculated
-Solar Electricity kWh,Derived metric,,Calculated
-Solar Share Elec %,Derived metric,,Calculated
-Wind Electricity kWh,Derived metric,,Calculated
-Wind Share Elec %,Derived metric,,Calculated
-Latest Data Year,Derived metric,,Calculated
+Country,No description available,,Calculated
+ISO Code,No description available,,Calculated
+Year,No description available,,Calculated
+Population,No description available,,Calculated
+GDP ISD,No description available,,Calculated
+Biofuel Electricity kWh,No description available,,Calculated
+Biofuel Share Elec %,No description available,,Calculated
+Carbon Intensity Elec gCO₂e/kWh,No description available,,Calculated
+Coal Electricity kWh,No description available,,Calculated
+Coal Share Elec %,No description available,,Calculated
+Electricity Demand kWh,No description available,,Calculated
+Electricity Generation kWh,No description available,,Calculated
+Electricity Share Energy %,No description available,,Calculated
+Fossil Elec Per Capita kWh,No description available,,Calculated
+Fossil Electricity kWh,No description available,,Calculated
+Fossil Share Elec %,No description available,,Calculated
+Gas Electricity kWh,No description available,,Calculated
+Gas Share Elec %,No description available,,Calculated
+Hydro Electricity kWh,No description available,,Calculated
+Hydro Share Elec %,No description available,,Calculated
+Low Carbon Elec Per Capita kWh,No description available,,Calculated
+Low Carbon Electricity kWh,No description available,,Calculated
+Low Carbon Share Elec %,No description available,,Calculated
+Nuclear Electricity kWh,No description available,,Calculated
+Nuclear Share Elec %,No description available,,Calculated
+Oil Electricity kWh,No description available,,Calculated
+Oil Share Elec %,No description available,,Calculated
+Other Renewable Electricity kWh,No description available,,Calculated
+Other Renewable Exc Biofuel Electricity kWh,No description available,,Calculated
+Other Renewables Elec Per Capita kWh,No description available,,Calculated
+Other Renewables Elec Per Capita Exc Biofuel kWh,No description available,,Calculated
+Other Renewables Share Elec %,No description available,,Calculated
+Other Renewables Share Elec Exc Biofuel %,No description available,,Calculated
+Per Capita Electricity kWh,No description available,,Calculated
+Renewables Elec Per Capita kWh,No description available,,Calculated
+Renewables Electricity kWh,No description available,,Calculated
+Renewables Share Elec %,No description available,,Calculated
+Solar Electricity kWh,No description available,,Calculated
+Solar Share Elec %,No description available,,Calculated
+Wind Electricity kWh,No description available,,Calculated
+Wind Share Elec %,No description available,,Calculated
+Latest Data Year,No description available,,Calculated
+country,Country - Geographic location.,,Our World in Data - Regions (2023)
+year,Year - Year of observation.,,Our World in Data - Regions (2023)
+iso_code,ISO code - ISO 3166-1 alpha-3 three-letter country codes.,,International Organization for Standardization - Regions (2023)
+population,"Population - Population by country, available from 10,000 BCE to 2100, based on data and estimates from different sources.",persons,Population based on various sources (2023) [https://ourworldindata.org/population-sources]
+gdp,Gross domestic product (GDP) - This data is adjusted for inflation and differences in the cost of living between countries.,international-$ in 2011 prices,Bolt and van Zanden - Maddison Project Database 2023 [https://www.rug.nl/ggdc/historicaldevelopment/maddison/releases/maddison-project-database-2023]
+biofuel_electricity,Electricity generation from bioenergy - Measured in terawatt-hours.,kilowatt-hours,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]
+biofuel_share_elec,"Share of electricity generated by bioenergy - Measured as a percentage of total electricity. (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)",%,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+carbon_intensity_elec,"Carbon intensity of electricity generation - Greenhouse gases emitted per unit of generated electricity, measured in grams of CO₂ equivalents per kilowatt-hour.",grams of CO₂ equivalents per kilowatt-hour,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+coal_electricity,Electricity generation from coal - Measured in terawatt-hours.,kilowatt-hours,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+coal_share_elec,"Share of electricity generated by coal - Measured as a percentage of total electricity. (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)",%,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+electricity_demand,Electricity demand - Measured in terawatt-hours.,kilowatt-hours,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]
+electricity_generation,Total electricity generation - Measured in terawatt-hours.,kilowatt-hours,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+electricity_share_energy,"Total electricity generation as share of primary energy - Measured as a percentage of total, direct primary energy consumption. (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)",%,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+fossil_elec_per_capita,Electricity generation from fossil fuels per person - Measured in kilowatt-hours per person.,kilowatt-hours,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]; Population based on various sources (2023) [https://ourworldindata.org/population-sources]
+fossil_electricity,Electricity generation from fossil fuels - Measured in terawatt-hours.,kilowatt-hours,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+fossil_share_elec,"Share of electricity generated by fossil fuels - Measured as a percentage of total electricity. (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)",%,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+gas_electricity,Electricity generation from gas - Measured in terawatt-hours.,kilowatt-hours,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+gas_share_elec,"Share of electricity generated by gas - Measured as a percentage of total electricity. (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)",%,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+hydro_electricity,Electricity generation from hydropower - Measured in terawatt-hours.,kilowatt-hours,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+hydro_share_elec,"Share of electricity generated by hydropower - Measured as a percentage of total electricity. (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)",%,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+low_carbon_elec_per_capita,"Electricity generation from low-carbon sources per person - Low-carbon sources correspond to renewables and nuclear power, that produce significantly less greenhouse-gas emissions than fossil fuels.",kilowatt-hours,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]; Population based on various sources (2023) [https://ourworldindata.org/population-sources]
+low_carbon_electricity,"Electricity generation from low-carbon sources - Low-carbon sources correspond to renewables and nuclear power, that produce significantly less greenhouse-gas emissions than fossil fuels.",kilowatt-hours,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+low_carbon_share_elec,"Share of electricity generated by low-carbon sources - Low-carbon sources correspond to renewables and nuclear power, that produce significantly less greenhouse-gas emissions than fossil fuels. (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)",%,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+nuclear_electricity,Electricity generation from nuclear - Measured in terawatt-hours.,kilowatt-hours,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+nuclear_share_elec,"Share of electricity generated by nuclear power - Measured as a percentage of total electricity. (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)",%,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+oil_electricity,Electricity generation from oil - Measured in terawatt-hours.,kilowatt-hours,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+oil_share_elec,"Share of electricity generated by oil - Measured as a percentage of total electricity. (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)",%,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+other_renewable_electricity,"Electricity generation from other renewables, including bioenergy - Measured in terawatt-hours.",kilowatt-hours,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+other_renewable_exc_biofuel_electricity,"Electricity generation from other renewables, excluding bioenergy - Measured in terawatt-hours.",kilowatt-hours,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]
+other_renewables_elec_per_capita,"Electricity generation from other renewables, including bioenergy, per person - Measured in kilowatt-hours per person.",kilowatt-hours,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]; Population based on various sources (2023) [https://ourworldindata.org/population-sources]
+other_renewables_elec_per_capita_exc_biofuel,"Electricity generation from other renewables, excluding bioenergy, per person - Measured in kilowatt-hours per person.",kilowatt-hours,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Population based on various sources (2023) [https://ourworldindata.org/population-sources]
+other_renewables_share_elec,"Share of electricity generated by other renewables, including bioenergy - Measured as a percentage of total electricity. (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)",%,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+other_renewables_share_elec_exc_biofuel,"Share of electricity generated by other renewables, excluding bioenergy - Measured as a percentage of total electricity. (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)",%,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+per_capita_electricity,Total electricity generation per person - Measured in kilowatt-hours per person.,kilowatt-hours,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]; Population based on various sources (2023) [https://ourworldindata.org/population-sources]
+renewables_elec_per_capita,Electricity generation from renewables per person - Measured in kilowatt-hours per person.,kilowatt-hours,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]; Population based on various sources (2023) [https://ourworldindata.org/population-sources]
+renewables_electricity,Electricity generation from renewables - Measured in terawatt-hours.,kilowatt-hours,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+renewables_share_elec,"Share of electricity generated by renewables - Measured as a percentage of total electricity. (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)",%,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+solar_electricity,Electricity generation from solar power - Measured in terawatt-hours.,kilowatt-hours,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+solar_share_elec,"Share of electricity generated by solar power - Measured as a percentage of total electricity. (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)",%,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+wind_electricity,Electricity generation from wind power - Measured in terawatt-hours.,kilowatt-hours,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
+wind_share_elec,"Share of electricity generated by wind power - Measured as a percentage of total electricity. (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)",%,Ember - Yearly Electricity Data (2024) [https://ember-climate.org/data-catalogue/yearly-electricity-data/]; Energy Institute - Statistical Review of World Energy (2024) [https://www.energyinst.org/statistical-review/]
