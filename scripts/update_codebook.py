@@ -37,19 +37,37 @@ def filter_codebook(codebook_df, config) -> pl.DataFrame:
     return filtered_codebook
 
 def sync_codebook_columns(filtered_codebook, transformed_codebook) -> pl.DataFrame:
+    """
+    Ensures the codebook includes all columns in the transformed dataset with descriptions 
+    and units preserved for existing columns.
+    """
     processed_data = pl.read_csv("output/processed_energy_data.csv")
     transformed_columns = processed_data.columns
 
+    # Identify missing columns to be added to the codebook
     codebook_columns = filtered_codebook['column'].to_list()
     missing_columns = [col for col in transformed_columns if col not in codebook_columns]
-    new_rows = pl.DataFrame({"column": missing_columns, "description": ["Derived metric"] * len(missing_columns), "unit": [None] * len(missing_columns), "source": ["Calculated"] * len(missing_columns)})
     
-    # Concatenate and reorder to match transformed_columns order
+    # Create new rows for missing columns with default descriptions
+    new_rows = pl.DataFrame({
+        "column": missing_columns,
+        "description": ["Derived metric"] * len(missing_columns),
+        "unit": [None] * len(missing_columns),
+        "source": ["Calculated"] * len(missing_columns)
+    })
+
+    # Concatenate new rows with the original filtered codebook
     combined_codebook = pl.concat([filtered_codebook, new_rows], how="vertical")
+    
+    # Reorder combined_codebook to match transformed_columns order, retaining original descriptions
     combined_codebook = combined_codebook.filter(pl.col("column").is_in(transformed_columns))
+    combined_codebook = combined_codebook.sort(
+        by=pl.col("column").apply(lambda x: transformed_columns.index(x) if x in transformed_columns else float("inf"))
+    )
     
     logger.debug("Synced codebook columns with transformed dataset")
     return combined_codebook
+
 
 def save_filtered_codebook(codebook_df, output_dir='output', filename='codebook.csv'):
     os.makedirs(output_dir, exist_ok=True)
