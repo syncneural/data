@@ -50,12 +50,29 @@ def sync_codebook_columns(filtered_codebook: pl.DataFrame, processed_data: pl.Da
         pl.DataFrame: Final codebook with original metadata, updated descriptions, and column order matching processed data.
     """
 
-    # Create a new DataFrame with updated 'column' data
-    updated_codebook = pl.DataFrame(filtered_codebook.iloc[:, :-1])  # Exclude the 'column' column
-    updated_codebook = updated_codebook.set_column("column", processed_data.columns)
+    # Get column names from processed data
+    new_columns = processed_data.columns
 
-    # Apply any necessary transformations to descriptions and units, if needed
-    # ... (your transformation logic here)
+    # Create a new DataFrame with the desired column order and filtered_codebook metadata
+    updated_codebook = pl.DataFrame(columns=new_columns)
+
+    # Merge filtered_codebook into the new DataFrame, handling missing columns
+    updated_codebook = updated_codebook.join(filtered_codebook, on="column", how="left")
+
+    # Apply transformations to descriptions and units
+    updated_codebook = updated_codebook.with_columns([
+        pl.when(pl.col("unit").str.contains("terawatt-hours", literal=True))
+               .then("kilowatt-hours")
+               .otherwise(pl.col("unit"))
+               .alias("unit"),
+        pl.when(pl.col("unit").str.contains("%", literal=True))
+               .then(pl.col("description") + " (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)")
+               .otherwise(pl.col("description"))
+               .alias("description")
+    ])
+
+    # Sort the DataFrame based on the column order
+    updated_codebook = updated_codebook.sort(by="column")
 
     return updated_codebook
 
