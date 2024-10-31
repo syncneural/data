@@ -45,3 +45,30 @@ columns_to_keep:
 active_year: 2022
 previousYearRange: 5
 force_update: true
+
+timeline_columns_to_keep:
+  - country
+  - iso_code
+  - year
+  - population
+  - gdp
+  - biofuel_electricity
+  - carbon_intensity_elec
+  - coal_electricity
+  - electricity_demand
+  - electricity_generation
+  - fossil_electricity
+  - gas_electricity
+  - hydro_electricity
+  - low_carbon_electricity
+  - nuclear_electricity
+  - oil_electricity
+  - other_renewable_electricity
+  - other_renewable_exc_biofuel_electricity
+  - per_capita_electricity
+  - renewables_electricity
+  - solar_electricity
+  - wind_electricity
+
+timeline_start_year: 2010
+timeline_end_year: 2022
