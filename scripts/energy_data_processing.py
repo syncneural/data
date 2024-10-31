@@ -98,6 +98,16 @@ def fetch_gdp_data(country_code: str, start_year: int, end_year: int) -> dict:
         return {}
 
 def fill_gdp_using_world_bank(df: pl.DataFrame, config: dict) -> pl.DataFrame:
+    """
+    Fills missing GDP values using data from the World Bank API.
+    
+    Args:
+        df (pl.DataFrame): The DataFrame with potential missing GDP values.
+        config (dict): Configuration dictionary.
+        
+    Returns:
+        pl.DataFrame: DataFrame with GDP values filled.
+    """
     missing_gdp = df.filter(pl.col("gdp").is_null() & pl.col("iso_code").is_not_null())
     gdp_results = {}
 
@@ -114,19 +124,21 @@ def fill_gdp_using_world_bank(df: pl.DataFrame, config: dict) -> pl.DataFrame:
         else:
             logger.warning(f"No GDP data available within the specified range for {country} ({country_code})")
 
+    # Use ThreadPoolExecutor for parallel requests
     with ThreadPoolExecutor(max_workers=10) as executor:
         executor.map(fetch_and_store, missing_gdp.iter_rows(named=True))
 
+    # Create a DataFrame from gdp_results
     if gdp_results:
         gdp_df = pl.DataFrame([
-            {"country": country, "gdp": data["gdp"], "latest_data_year": data["latest_data_year"]}
+            {"country": country, "gdp_filled": data["gdp"], "latest_data_year_filled": data["latest_data_year"]}
             for country, data in gdp_results.items()
         ])
-        df_filled = df.join(gdp_df, on="country", how="left")
-        df_filled = df_filled.with_columns([
-            pl.coalesce([pl.col("gdp_y"), pl.col("gdp_x")]).alias("gdp"),
-            pl.coalesce([pl.col("latest_data_year_y"), pl.col("latest_data_year_x")]).alias("latest_data_year")
-        ]).drop(["gdp_x", "gdp_y", "latest_data_year_x", "latest_data_year_y"])
+        # Join with the original DataFrame to fill in the missing values
+        df_filled = df.join(gdp_df, on="country", how="left").with_columns([
+            pl.coalesce([pl.col("gdp"), pl.col("gdp_filled")]).alias("gdp"),
+            pl.coalesce([pl.col("latest_data_year"), pl.col("latest_data_year_filled")]).alias("latest_data_year")
+        ]).drop(["gdp_filled", "latest_data_year_filled"])
         logger.info(f"Filled GDP values for {len(gdp_results)} countries.")
         return df_filled
     else:
