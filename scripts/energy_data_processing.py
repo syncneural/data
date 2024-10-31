@@ -143,7 +143,11 @@ def round_numeric_columns(df):
     columns_to_round_0.extend(kwh_columns)
 
     # Add Carbon Intensity columns based on units
-    carbon_intensity_columns = [col for col, unit in zip(df.columns, df.units) if unit and 'gco₂e/kwh' in unit.lower()]
+    if hasattr(df, 'units'):
+        carbon_intensity_columns = [col for col, unit in zip(df.columns, df.units) if unit and 'gco₂e/kwh' in unit.lower()]
+    else:
+        carbon_intensity_columns = []
+
     columns_to_round_0.extend(carbon_intensity_columns)
 
     # Remove duplicates
@@ -218,6 +222,9 @@ def main():
     df_filtered, codebook_df = convert_percentages_to_fractions(df_filtered, codebook_df)
     df_filtered = filter_year_range(df_filtered, config)
     df_latest = prioritize_active_year(df_filtered, config)
+
+    # **Re-attach units to df_latest after grouping operations**
+    df_latest = attach_units_to_df(df_latest, codebook_df)
 
     # Fill missing GDP data
     df_latest = fill_gdp_using_world_bank(df_latest, config['active_year'], config['previousYearRange'])
