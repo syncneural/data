@@ -379,11 +379,16 @@ def main():
     df_timeline = filter_dataset_by_year_range(df, timeline_start_year, timeline_end_year)
     df_timeline = filter_dataset_columns(df_timeline, timeline_columns_to_keep)
 
+    # Rename columns for timeline dataset
+    df_timeline = rename_columns(df_timeline, codebook_df)
+
+    # Round numeric columns for timeline dataset
+    df_timeline = round_numeric_columns(df_timeline)
+
+    # Save timeline processed energy data
     timeline_output_path = os.path.join(output_dir, f'processed_energy_data_{timeline_start_year}_{timeline_end_year}.csv')
     df_timeline.to_csv(timeline_output_path, index=False)
     logger.info(f"Timeline processed energy data saved to {timeline_output_path}")
 
-
 if __name__ == "__main__":
     main()
-
