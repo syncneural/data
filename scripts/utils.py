@@ -134,13 +134,14 @@ def update_codebook_units(codebook_df: pl.DataFrame) -> pl.DataFrame:
 def apply_transformations(codebook_df: pl.DataFrame) -> pl.DataFrame:
     """
     Apply predefined transformations to the codebook DataFrame.
-    
+
     Args:
         codebook_df (pl.DataFrame): The original codebook DataFrame.
-        
+
     Returns:
         pl.DataFrame: Transformed codebook DataFrame.
     """
+    # Transform 'terawatt-hours' to 'kilowatt-hours' in description and unit columns
     codebook_transformed = codebook_df.with_columns([
         pl.when(pl.col("description").str.contains("terawatt-hours", literal=True))
         .then(pl.col("description").str.replace_all("terawatt-hours", "kilowatt-hours", literal=True))
@@ -153,18 +154,6 @@ def apply_transformations(codebook_df: pl.DataFrame) -> pl.DataFrame:
     ])
     logger.debug("Replaced 'terawatt-hours' with 'kilowatt-hours' in description and unit columns.")
 
-    codebook_transformed = codebook_transformed.with_columns([
-        pl.when(pl.col("unit").str.contains("million tonnes", literal=True))
-        .then(pl.col("unit").str.replace_all("million tonnes", "tonnes", literal=True))
-        .otherwise(pl.col("unit"))
-        .alias("unit"),
-        pl.when(pl.col("description").str.contains("million tonnes", literal=True))
-        .then(pl.col("description").str.replace_all("million tonnes", "tonnes", literal=True))
-        .otherwise(pl.col("description"))
-        .alias("description")
-    ])
-    logger.debug("Replaced 'million tonnes' with 'tonnes' in description and unit columns.")
-
     # Update descriptions for percentage units
     percentage_columns = codebook_transformed.filter(pl.col("unit").str.contains("%", literal=True)).select("column").to_series().to_list()
     updated_descriptions = []
@@ -176,9 +165,8 @@ def apply_transformations(codebook_df: pl.DataFrame) -> pl.DataFrame:
             logger.debug(f"Updated description for '{col}' to indicate percentage fraction.")
         else:
             updated_descriptions.append(desc)
-    codebook_transformed = codebook_transformed.with_column(
+    codebook_transformed = codebook_transformed.with_columns(
         pl.Series("description", updated_descriptions)
     )
-    
-    return codebook_transformed
 
+    return codebook_transformed
