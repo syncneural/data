@@ -1,4 +1,4 @@
-# GitHub Actions Workflow to Run Energy Data Processing and Codebook Update
+# .github/workflows/process_energy_data.yml
 
 name: Process Energy Data and Update Codebook
 
@@ -25,6 +25,18 @@ jobs:
         python -m pip install --upgrade pip
         pip install pandas requests pyyaml
 
+    - name: Confirm working directory
+      run: pwd
+
+    - name: List root directory contents
+      run: ls -la
+
+    - name: List scripts directory contents
+      run: ls -la scripts/
+
+    - name: List output directory contents before scripts run
+      run: ls -la output/ || echo "Output directory does not exist yet."
+
     - name: Run energy data processing script
       run: |
         python scripts/energy_data_processing.py
@@ -33,7 +45,7 @@ jobs:
       run: |
         python scripts/update_codebook.py
 
-    - name: List contents of output directory
+    - name: List contents of output directory after scripts run
       run: |
         ls -la output/
 
