@@ -49,9 +49,12 @@ def sync_codebook_columns(filtered_codebook: pl.DataFrame, transformed_codebook:
     Returns:
         pl.DataFrame: Final codebook with original metadata, updated descriptions, and column order matching processed data.
     """
-    # Step 1: Load the processed dataset to align the final order
+    # Load the processed dataset to align the final order
     processed_data = pl.read_csv("output/processed_energy_data.csv")
     transformed_columns = processed_data.columns
+
+    # Create a mapping of column names to index for ordering
+    column_order = {col: i for i, col in enumerate(transformed_columns)}
 
     # Step 2: Check for columns in processed_data but not in original codebook
     missing_columns = [col for col in transformed_columns if col not in filtered_codebook["column"].to_list()]
@@ -64,14 +67,14 @@ def sync_codebook_columns(filtered_codebook: pl.DataFrame, transformed_codebook:
         "source": ["Calculated"] * len(missing_columns)
     })
 
-    # Step 4: Concatenate filtered_codebook with any missing rows
+    # Concatenate filtered_codebook with missing rows
     combined_codebook = pl.concat([filtered_codebook, missing_rows], how="vertical")
 
-    # Step 5: Apply transformations to column names and specific terms in descriptions
+    # Apply transformations to column names and specific terms in descriptions
     combined_codebook = combined_codebook.with_columns([
-        # Rename columns for consistency with processed data
+        # Rename units for consistency
         pl.when(pl.col("unit").str.contains("terawatt-hours", literal=True))
-        .then(pl.col("unit").str.replace_all("terawatt-hours", "kilowatt-hours", literal=True))
+        .then(pl.lit("kilowatt-hours"))
         .otherwise(pl.col("unit"))
         .alias("unit"),
 
@@ -82,14 +85,15 @@ def sync_codebook_columns(filtered_codebook: pl.DataFrame, transformed_codebook:
         .alias("description")
     ])
 
-    # Ensure column order matches the transformed columns
-    column_order = {col: i for i, col in enumerate(transformed_columns)}
-    combined_codebook = combined_codebook.sort(
-        by=pl.col("column").map_dict(column_order, default=float("inf"))
+    # Add a temporary 'sort_order' column based on column order
+    combined_codebook = combined_codebook.with_columns(
+        pl.col("column").apply(lambda col: column_order.get(col, float("inf"))).alias("sort_order")
     )
 
-    return combined_codebook
+    # Sort by the temporary column and drop it afterward
+    final_codebook = combined_codebook.sort("sort_order").drop("sort_order")
 
+    return final_codebook
 def save_filtered_codebook(codebook_df, output_dir='output', filename='codebook.csv'):
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, filename)
