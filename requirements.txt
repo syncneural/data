@@ -1,6 +1,6 @@
 # requirements.txt
 
-polars
+polars==0.20.3
 pyyaml
 requests
 pytest
