@@ -104,12 +104,13 @@ def apply_unit_conversion(df: pl.DataFrame, codebook_df: pl.DataFrame) -> pl.Dat
         if col in df_converted.columns and isinstance(unit, str):
             normalized_unit = unit.lower()
             if 'terawatt-hour' in normalized_unit or 'twh' in normalized_unit:
-                df_converted = df_converted.with_column((pl.col(col) * 1e9).alias(col))
+                df_converted = df_converted.with_columns([(pl.col(col) * 1e9).alias(col)])
                 logger.debug(f"Converted '{col}' from TWh to kWh")
             elif 'million tonne' in normalized_unit or 'million tonnes' in normalized_unit:
-                df_converted = df_converted.with_column((pl.col(col) * 1e6).alias(col))
+                df_converted = df_converted.with_columns([(pl.col(col) * 1e6).alias(col)])
                 logger.debug(f"Converted '{col}' from million tonnes to tonnes")
     return df_converted
+
 
 def update_codebook_units(codebook_df: pl.DataFrame) -> pl.DataFrame:
     """
