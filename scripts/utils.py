@@ -5,17 +5,13 @@ import re
 import polars as pl
 
 logger = logging.getLogger("Utils")
-logger.setLevel(logging.DEBUG)  # Set to DEBUG for detailed logs
+logger.setLevel(logging.DEBUG)
 
-# Create console handler with a higher log level
+# Console handler for logging
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
-
-# Create formatter and add it to the handlers
 formatter = logging.Formatter('[%(levelname)s] %(name)s - %(message)s')
 ch.setFormatter(formatter)
-
-# Add the handlers to the logger
 if not logger.hasHandlers():
     logger.addHandler(ch)
 
@@ -67,8 +63,6 @@ def transform_column_names(df: pl.DataFrame, is_codebook: bool = False) -> pl.Da
                 new_col_name += ' %'
             elif 'international-$' in normalized_unit:
                 new_col_name += ' ISD'
-            elif 'tonnes' in normalized_unit:
-                new_col_name += ' tonnes'
             elif 'year' in normalized_unit:
                 pass  # Do not append unit to year columns
 
@@ -106,13 +100,7 @@ def apply_unit_conversion(df: pl.DataFrame, codebook_df: pl.DataFrame) -> pl.Dat
             if 'terawatt-hour' in normalized_unit or 'twh' in normalized_unit:
                 df_converted = df_converted.with_columns([(pl.col(col) * 1e9).alias(col)])
                 logger.debug(f"Converted '{col}' from TWh to kWh")
-            elif 'million tonne' in normalized_unit or 'million tonnes' in normalized_unit:
-                df_converted = df_converted.with_columns([(pl.col(col) * 1e6).alias(col)])
-                logger.debug(f"Converted '{col}' from million tonnes to tonnes")
     return df_converted
-
-
-import polars as pl
 
 def update_codebook_units(codebook_df: pl.DataFrame) -> pl.DataFrame:
     """
@@ -124,13 +112,11 @@ def update_codebook_units(codebook_df: pl.DataFrame) -> pl.DataFrame:
     Returns:
         pl.DataFrame: Updated codebook DataFrame with converted units.
     """
-    # Create a mask for rows that contain 'terawatt-hours' or 'TWh' in the 'unit' column
     mask_twh = codebook_df["unit"].str.to_lowercase().str.contains("terawatt-hour|twh")
     
-    # Use the mask to update the 'unit' column only where applicable
     codebook_updated = codebook_df.with_columns(
         pl.when(mask_twh)
-        .then("kilowatt-hours")
+        .then(pl.lit("kilowatt-hours"))
         .otherwise(pl.col("unit"))
         .alias("unit")
     )
@@ -139,7 +125,6 @@ def update_codebook_units(codebook_df: pl.DataFrame) -> pl.DataFrame:
         logger.debug("Updated units from 'terawatt-hours' to 'kilowatt-hours'")
     
     return codebook_updated
-
 
 def apply_transformations(codebook_df: pl.DataFrame) -> pl.DataFrame:
     """
@@ -162,18 +147,6 @@ def apply_transformations(codebook_df: pl.DataFrame) -> pl.DataFrame:
         .alias("unit")
     ])
     logger.debug("Replaced 'terawatt-hours' with 'kilowatt-hours' in description and unit columns.")
-
-    codebook_transformed = codebook_transformed.with_columns([
-        pl.when(pl.col("unit").str.contains("million tonnes", case=False, literal=True))
-        .then(pl.col("unit").str.replace_all("million tonnes", "tonnes", literal=True))
-        .otherwise(pl.col("unit"))
-        .alias("unit"),
-        pl.when(pl.col("unit").str.contains("million tonnes", case=False, literal=True))
-        .then(pl.col("description").str.replace_all("million tonnes", "tonnes", literal=True))
-        .otherwise(pl.col("description"))
-        .alias("description")
-    ])
-    logger.debug("Replaced 'million tonnes' with 'tonnes' in description and unit columns.")
 
     # Update descriptions for percentage units
     percentage_columns = codebook_transformed.filter(pl.col("unit").str.contains("%", literal=True)).select("column").to_series().to_list()
