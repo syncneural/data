@@ -6,7 +6,7 @@ import pandas as pd
 import yaml
 import requests
 import threading
-from utils import transform_column_names, apply_unit_conversion, apply_transformations
+from utils import transform_column_names, apply_unit_conversion
 
 logger = logging.getLogger("EnergyDataProcessor")
 logging.basicConfig(level=logging.INFO)
@@ -123,19 +123,19 @@ def fill_gdp_using_world_bank(df, active_year, previousYearRange):
             logger.warning(f"No GDP data available within the specified range for {row['country']}")
     return df
 
-def attach_units_to_df(df, codebook_df):
-    unit_map = dict(zip(codebook_df['column'], codebook_df['unit']))
-    units = [unit_map.get(col, None) for col in df.columns]
-    df.attrs['units'] = units
+def apply_unit_conversion_script(df):
+    """
+    Applies unit conversions to the DataFrame based on column names containing units.
+    This function does NOT modify the codebook.
+    """
+    df = apply_unit_conversion(df)
     return df
 
 def round_numeric_columns(df):
     columns_to_round_0 = ['population', 'gdp']
 
-    units = df.attrs.get('units', [None]*len(df.columns))
-
-    kwh_columns = [col for col, unit in zip(df.columns, units) if isinstance(unit, str) and 'kilowatt-hours' in unit.lower()]
-    carbon_intensity_columns = [col for col, unit in zip(df.columns, units) if isinstance(unit, str) and 'gco₂e/kwh' in unit.lower()]
+    kwh_columns = [col for col in df.columns if 'kwh' in col.lower()]
+    carbon_intensity_columns = [col for col in df.columns if 'gco₂e/kwh' in col.lower() or 'gco2e/kwh' in col.lower()]
 
     columns_to_round_0.extend(kwh_columns)
     columns_to_round_0.extend(carbon_intensity_columns)
@@ -148,6 +148,7 @@ def round_numeric_columns(df):
     return df
 
 def rename_columns(df_latest, codebook_df):
+    # Ensure 'latest_data_year' is in codebook
     if 'latest_data_year' not in codebook_df['column'].values:
         new_row = pd.DataFrame({
             'column': ['latest_data_year'],
@@ -157,48 +158,40 @@ def rename_columns(df_latest, codebook_df):
         })
         codebook_df = pd.concat([codebook_df, new_row], ignore_index=True)
 
+    # Filter codebook to columns in df_latest
     codebook_df = codebook_df[codebook_df['column'].isin(df_latest.columns)].reset_index(drop=True)
 
+    # Transform column names
     transformed_codebook = transform_column_names(codebook_df.copy(), is_codebook=True)
 
+    # Create rename map
     rename_map = dict(zip(codebook_df['column'], transformed_codebook['column']))
 
+    # Rename df_latest columns
     df_latest.rename(columns=rename_map, inplace=True)
-    return df_latest, codebook_df
-
-def convert_percentages_to_fractions(df, codebook_df):
-    percentage_columns = codebook_df[codebook_df['unit'].str.contains('%', na=False)]['column'].tolist()
-    for col in percentage_columns:
-        if col in df.columns:
-            df[col] = (df[col] / 100.0).round(2)
-            logger.info(f"Converted {col} from percentage to fraction and rounded to 2 decimal places.")
-    return df, codebook_df
+    return df_latest
 
 def main():
     logger.info("Starting energy data processing script.")
     download_datasets()
-    codebook_df = load_codebook()
     config = load_or_create_config()
+
     df = load_main_dataset()
 
-    codebook_df = apply_transformations(codebook_df)
-
     df_filtered = filter_main_dataset(df, config)
-    df_filtered, codebook_df = apply_unit_conversion(df_filtered, codebook_df)
-    df_filtered = attach_units_to_df(df_filtered, codebook_df)
-    df_filtered, codebook_df = convert_percentages_to_fractions(df_filtered, codebook_df)
+    df_filtered = apply_unit_conversion_script(df_filtered)
     df_filtered = filter_year_range(df_filtered, config)
     df_latest = prioritize_active_year(df_filtered, config)
-
-    df_latest = attach_units_to_df(df_latest, codebook_df)
 
     df_latest = fill_gdp_using_world_bank(df_latest, config['active_year'], config['previousYearRange'])
     df_latest = round_numeric_columns(df_latest)
 
-    df_latest, codebook_df = rename_columns(df_latest, codebook_df)
+    codebook_df = load_codebook()  # To get codebook columns for renaming
+    df_latest = rename_columns(df_latest, codebook_df)
 
     output_dir = 'output'
     os.makedirs(output_dir, exist_ok=True)
+
     output_path = os.path.join(output_dir, 'processed_energy_data.csv')
     df_latest.to_csv(output_path, index=False)
     logger.info(f"Processed energy data saved to {output_path}")
