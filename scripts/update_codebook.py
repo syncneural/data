@@ -36,12 +36,10 @@ def filter_codebook(codebook_df, config) -> pl.DataFrame:
     logger.debug(f"Filtered codebook columns: {filtered_codebook.columns}")
     return filtered_codebook
 
-import polars as pl
-
 def sync_codebook_columns(filtered_codebook: pl.DataFrame, transformed_codebook: pl.DataFrame) -> pl.DataFrame:
     """
-    Syncs the codebook to include all columns from the processed dataset, 
-    preserving existing descriptions, units, and sources from the original codebook, 
+    Syncs the codebook to include all columns from the processed dataset,
+    preserving existing descriptions, units, and sources from the original codebook,
     with transformations for column names and specific terms in descriptions.
 
     Args:
@@ -76,10 +74,10 @@ def sync_codebook_columns(filtered_codebook: pl.DataFrame, transformed_codebook:
         .then(pl.col("unit").str.replace_all("terawatt-hours", "kilowatt-hours", literal=True))
         .otherwise(pl.col("unit"))
         .alias("unit"),
-        
+
         # Add descriptive clarification for percentage columns
         pl.when(pl.col("unit").str.contains("%", literal=True))
-        .then(pl.col("description").apply(lambda desc: f"{desc} (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)" if "percentage fraction of 1" not in desc else desc))
+        .then(pl.col("description") + " (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)")
         .otherwise(pl.col("description"))
         .alias("description")
     ])
@@ -87,7 +85,8 @@ def sync_codebook_columns(filtered_codebook: pl.DataFrame, transformed_codebook:
     # Ensure column order matches the transformed columns
     column_order = {col: i for i, col in enumerate(transformed_columns)}
     combined_codebook = combined_codebook.sort(
-        by=pl.col("column").apply(lambda x: column_order.get(x, float("inf"))))
+        by=pl.col("column").map_dict(column_order, default=float("inf"))
+    )
 
     return combined_codebook
 
