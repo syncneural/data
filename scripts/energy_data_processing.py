@@ -195,7 +195,7 @@ def main():
     df_filtered = filter_main_dataset(df, config)
     codebook_df = load_codebook()
     df_filtered = apply_unit_conversion_script(df_filtered, codebook_df)
-    codebook_df = update_codebook_units_after_conversion(codebook_df)
+    codebook_df = update_codebook_units_after_conversion(codebook_df)  # Update units after conversion
     df_filtered = filter_year_range(df_filtered, config)
     df_latest = prioritize_active_year(df_filtered, config)
 
