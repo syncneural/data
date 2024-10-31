@@ -123,12 +123,12 @@ def fill_gdp_using_world_bank(df, active_year, previousYearRange):
             logger.warning(f"No GDP data available within the specified range for {row['country']}")
     return df
 
-def apply_unit_conversion_script(df):
+def apply_unit_conversion_script(df, codebook_df):
     """
-    Applies unit conversions to the DataFrame based on column names containing units.
+    Applies unit conversions to the DataFrame based on the codebook's unit definitions.
     This function does NOT modify the codebook.
     """
-    df = apply_unit_conversion(df)
+    df = apply_unit_conversion(df, codebook_df)
     return df
 
 def round_numeric_columns(df):
@@ -169,6 +169,7 @@ def rename_columns(df_latest, codebook_df):
 
     # Rename df_latest columns
     df_latest.rename(columns=rename_map, inplace=True)
+    logger.info(f"Renamed columns: {rename_map}")
     return df_latest
 
 def main():
@@ -179,14 +180,14 @@ def main():
     df = load_main_dataset()
 
     df_filtered = filter_main_dataset(df, config)
-    df_filtered = apply_unit_conversion_script(df_filtered)
+    codebook_df = load_codebook()
+    df_filtered = apply_unit_conversion_script(df_filtered, codebook_df)
     df_filtered = filter_year_range(df_filtered, config)
     df_latest = prioritize_active_year(df_filtered, config)
 
     df_latest = fill_gdp_using_world_bank(df_latest, config['active_year'], config['previousYearRange'])
     df_latest = round_numeric_columns(df_latest)
 
-    codebook_df = load_codebook()  # To get codebook columns for renaming
     df_latest = rename_columns(df_latest, codebook_df)
 
     output_dir = 'output'
