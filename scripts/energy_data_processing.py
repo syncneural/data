@@ -1,3 +1,5 @@
+# energy_data_processing.py
+
 import os
 import logging
 import pandas as pd
@@ -10,7 +12,6 @@ logger = logging.getLogger("EnergyDataProcessor")
 logging.basicConfig(level=logging.INFO)
 
 def download_datasets():
-    # Download datasets if they don't exist
     if not os.path.exists('owid-energy-data.csv'):
         data_url = 'https://raw.githubusercontent.com/owid/energy-data/master/owid-energy-data.csv'
         df = pd.read_csv(data_url)
@@ -38,7 +39,6 @@ def load_or_create_config():
             config = yaml.safe_load(f)
             logger.info(f"Loaded configuration from {config_path}")
     else:
-        # Default configuration if config.yaml does not exist
         config = {
             'columns_to_keep': ['country', 'year', 'iso_code', 'population', 'gdp'],
             'active_year': 2022,
@@ -55,9 +55,7 @@ def load_main_dataset():
     return df
 
 def filter_main_dataset(df, config):
-    # Keep only the columns specified in config['columns_to_keep']
     df_filtered = df[config['columns_to_keep']].copy()
-    # Drop rows with missing population
     df_filtered.dropna(subset=['population'], inplace=True)
     return df_filtered
 
@@ -75,9 +73,6 @@ def prioritize_active_year(df, config):
     return df_latest
 
 def fetch_gdp_data_range(country_code, start_year, end_year, result_dict, retry=3):
-    """
-    Fetches GDP data for a given country across a specified year range in a single API call.
-    """
     year_range = f"{start_year}:{end_year}"
     url = f"https://api.worldbank.org/v2/country/{country_code}/indicator/NY.GDP.MKTP.CD?date={year_range}&format=json"
     try:
@@ -107,140 +102,4 @@ def fill_gdp_using_world_bank(df, active_year, previousYearRange):
     threads = []
     gdp_results = {}
 
-    for index, row in missing_gdp.iterrows():
-        country_code = row['iso_code']
-        thread = threading.Thread(target=fetch_gdp_data_range, args=(country_code, active_year - previousYearRange, active_year, gdp_results))
-        threads.append(thread)
-        thread.start()
-
-    # Wait for all threads to complete
-    for thread in threads:
-        thread.join()
-
-    # Fill the GDP data from the results
-    for index, row in missing_gdp.iterrows():
-        country_code = row['iso_code']
-        gdp_data = gdp_results.get(country_code, None)
-        if gdp_data:
-            latest_year = max(gdp_data.keys())
-            df.loc[index, 'gdp'] = gdp_data[latest_year]
-            df.loc[index, 'latest_data_year'] = latest_year
-            logger.info(f"Filled GDP for {row['country']} using year: {latest_year}")
-        else:
-            logger.warning(f"No GDP data available within the specified range for {row['country']}")
-    return df
-
-def round_numeric_columns(df):
-    # Define columns to round to zero decimal places
-    columns_to_round_0 = ['population', 'gdp']
-
-    # Add kWh columns based on units
-    if hasattr(df, 'units'):
-        kwh_columns = [col for col, unit in zip(df.columns, df.units) if unit and 'kilowatt-hours' in unit.lower()]
-    else:
-        kwh_columns = []
-
-    columns_to_round_0.extend(kwh_columns)
-
-    # Add Carbon Intensity columns based on units
-    if hasattr(df, 'units'):
-        carbon_intensity_columns = [col for col, unit in zip(df.columns, df.units) if unit and 'gco₂e/kwh' in unit.lower()]
-    else:
-        carbon_intensity_columns = []
-
-    columns_to_round_0.extend(carbon_intensity_columns)
-
-    # Remove duplicates
-    columns_to_round_0 = list(set(columns_to_round_0))
-
-    # Round specified columns to zero decimal places
-    for col in columns_to_round_0:
-        if col in df.columns:
-            df[col] = df[col].round(0).astype('Int64')  # Use nullable integer type
-            logger.info(f"Rounded {col} to zero decimal places.")
-    return df
-
-def attach_units_to_df(df, codebook_df):
-    # Create a mapping from original column names to units
-    unit_map = dict(zip(codebook_df['column'], codebook_df['unit']))
-    # Store units in df as an attribute
-    df.units = [unit_map.get(col, None) for col in df.columns]
-    return df
-
-def rename_columns(df_latest, codebook_df):
-    # Add 'latest_data_year' to codebook if not present
-    if 'latest_data_year' not in codebook_df['column'].values:
-        new_row = pd.DataFrame({
-            'column': ['latest_data_year'],
-            'description': ['Year of the latest data available for the country'],
-            'unit': ['Year'],
-            'source': ['Data processing']
-        })
-        codebook_df = pd.concat([codebook_df, new_row], ignore_index=True)
-
-    # Filter codebook_df to include only columns in df_latest
-    codebook_df = codebook_df[codebook_df['column'].isin(df_latest.columns)].reset_index(drop=True)
-
-    # Transform codebook_df to update the column names and units
-    transformed_codebook = transform_column_names(codebook_df.copy(), is_codebook=True)
-
-    # Create a mapping from original column names to transformed column names
-    rename_map = dict(zip(codebook_df['column'], transformed_codebook['column']))
-
-    # Rename columns in df_latest using the mapping
-    df_latest.rename(columns=rename_map, inplace=True)
-    return df_latest, codebook_df
-
-def convert_percentages_to_fractions(df, codebook_df):
-    # Identify columns with '%' in their units
-    percentage_columns = codebook_df[codebook_df['unit'].str.contains('%', na=False)]['column'].tolist()
-    for col in percentage_columns:
-        if col in df.columns:
-            df[col] = (df[col] / 100.0).round(2)  # Convert percentage to fraction and round to 2 decimal places
-            logger.info(f"Converted {col} from percentage to fraction and rounded to 2 decimal places.")
-            # No change to unit; keep as '%'
-    return df, codebook_df
-
-def main():
-    logger.info("Starting energy data processing script.")
-    # Download datasets
-    download_datasets()
-    # Load datasets
-    codebook_df = load_codebook()
-    config = load_or_create_config()
-    df = load_main_dataset()
-
-    # Apply transformations to codebook_df
-    codebook_df = apply_transformations(codebook_df)
-
-    # Apply transformations and filters
-    df_filtered = filter_main_dataset(df, config)
-    # Apply unit conversions and update codebook_df
-    df_filtered, codebook_df = apply_unit_conversion(df_filtered, codebook_df)
-    # Attach units to df_filtered after unit conversion
-    df_filtered = attach_units_to_df(df_filtered, codebook_df)
-    df_filtered, codebook_df = convert_percentages_to_fractions(df_filtered, codebook_df)
-    df_filtered = filter_year_range(df_filtered, config)
-    df_latest = prioritize_active_year(df_filtered, config)
-
-    # **Re-attach units to df_latest after grouping operations**
-    df_latest = attach_units_to_df(df_latest, codebook_df)
-
-    # Fill missing GDP data
-    df_latest = fill_gdp_using_world_bank(df_latest, config['active_year'], config['previousYearRange'])
-    # Round specified numeric columns
-    df_latest = round_numeric_columns(df_latest)
-
-    # Units are already attached to df_latest
-    # Rename columns
-    df_latest, codebook_df = rename_columns(df_latest, codebook_df)
-
-    # Save the processed dataset
-    output_dir = 'output'
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, 'processed_energy_data.csv')
-    df_latest.to_csv(output_path, index=False)
-    logger.info(f"Processed energy data saved to {output_path}")
-
-if __name__ == "__main__":
-    main()
+   
