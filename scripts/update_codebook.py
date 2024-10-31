@@ -85,15 +85,19 @@ def sync_codebook_columns(filtered_codebook: pl.DataFrame, transformed_codebook:
         .alias("description")
     ])
 
-    # Add a temporary 'sort_order' column based on column order
+    # Add a temporary 'sort_order' column based on column order using Polars' conditional expression
     combined_codebook = combined_codebook.with_columns(
-        pl.col("column").apply(lambda col: column_order.get(col, float("inf"))).alias("sort_order")
+        pl.when(pl.col("column").is_in(column_order.keys()))
+        .then(pl.col("column").map_dict(column_order))
+        .otherwise(float("inf"))
+        .alias("sort_order")
     )
 
     # Sort by the temporary column and drop it afterward
     final_codebook = combined_codebook.sort("sort_order").drop("sort_order")
 
     return final_codebook
+    
 def save_filtered_codebook(codebook_df, output_dir='output', filename='codebook.csv'):
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, filename)
