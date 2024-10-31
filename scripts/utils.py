@@ -76,7 +76,10 @@ def apply_unit_conversion(df, codebook_df):
             elif 'million tonne' in normalized_unit or 'million tonnes' in normalized_unit:
                 df[col] = df[col] * 1e6  # Convert million tonnes to tonnes
                 logger.info(f"Converted '{col}' from million tonnes to tonnes")
+            else:
+                logger.info(f"No conversion needed for '{col}' with unit '{unit}'")
     return df
+
 
 def apply_transformations(codebook_df):
     """
