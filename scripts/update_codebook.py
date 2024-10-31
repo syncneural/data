@@ -59,12 +59,14 @@ def sync_codebook_columns(filtered_codebook, transformed_codebook) -> pl.DataFra
     # Concatenate new rows with the original filtered codebook
     combined_codebook = pl.concat([filtered_codebook, new_rows], how="vertical")
     
-    # Reorder combined_codebook to match transformed_columns order, retaining original descriptions
-    combined_codebook = combined_codebook.filter(pl.col("column").is_in(transformed_columns))
-    combined_codebook = combined_codebook.sort(
-        by=pl.col("column").apply(lambda x: transformed_columns.index(x) if x in transformed_columns else float("inf"))
-    )
+    # Map each column to its index in `transformed_columns`
+    column_order = {col: i for i, col in enumerate(transformed_columns)}
     
+    # Sort combined_codebook based on this order
+    combined_codebook = combined_codebook.sort(
+        by=pl.col("column").map_dict(column_order)
+    )
+
     logger.debug("Synced codebook columns with transformed dataset")
     return combined_codebook
 
