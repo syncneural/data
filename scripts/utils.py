@@ -1,18 +1,41 @@
-# utils.py
+# scripts/utils.py
 
 import logging
 import re
-import pandas as pd
+import polars as pl
 
 logger = logging.getLogger("Utils")
+logger.setLevel(logging.DEBUG)  # Set to DEBUG for detailed logs
 
-def transform_column_names(df, is_codebook=False):
+# Create console handler with a higher log level
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+
+# Create formatter and add it to the handlers
+formatter = logging.Formatter('[%(levelname)s] %(name)s - %(message)s')
+ch.setFormatter(formatter)
+
+# Add the handlers to the logger
+if not logger.hasHandlers():
+    logger.addHandler(ch)
+
+def transform_column_names(df: pl.DataFrame, is_codebook: bool = False) -> pl.DataFrame:
+    """
+    Transforms column names based on predefined replacements and unit information.
+    
+    Args:
+        df (pl.DataFrame): The DataFrame with original or codebook column names.
+        is_codebook (bool): Flag indicating if the DataFrame is a codebook.
+        
+    Returns:
+        pl.DataFrame: DataFrame with transformed column names.
+    """
     if is_codebook:
-        columns = df['column'].tolist()
-        units = df['unit'].tolist()
+        columns = df["column"].to_list()
+        units = df["unit"].to_list()
     else:
-        columns = df.columns.tolist()
-        units = [None] * len(columns)  # No units in df
+        columns = df.columns
+        units = [None] * len(columns)
 
     new_columns = []
     for idx, col_name in enumerate(columns):
@@ -50,61 +73,112 @@ def transform_column_names(df, is_codebook=False):
                 pass  # Do not append unit to year columns
 
         new_columns.append(new_col_name)
-        logger.info(f"Transformed '{original_col_name}' to '{new_col_name}'")
+        logger.debug(f"Transformed '{original_col_name}' to '{new_col_name}'")
 
     if is_codebook:
-        df['column'] = new_columns
+        df_transformed = df.with_columns([
+            pl.lit(new_columns[idx]).alias("column") for idx in range(len(new_columns))
+        ])
     else:
-        df.columns = new_columns
+        rename_map = {old: new for old, new in zip(columns, new_columns)}
+        df_transformed = df.rename(rename_map)
 
-    logger.info(f"Final column names: {df.columns.tolist()}")
-    return df
+    logger.debug(f"Final column names: {df_transformed.columns}")
+    return df_transformed
 
-def apply_unit_conversion(df, codebook_df):
+def apply_unit_conversion(df: pl.DataFrame, codebook_df: pl.DataFrame) -> pl.DataFrame:
     """
     Applies unit conversions to the DataFrame based on the codebook's unit definitions.
-    This function does NOT modify the codebook.
+    
+    Args:
+        df (pl.DataFrame): The DataFrame to convert units for.
+        codebook_df (pl.DataFrame): The codebook containing unit definitions.
+        
+    Returns:
+        pl.DataFrame: DataFrame with units converted.
     """
-    for idx, row in codebook_df.iterrows():
+    df_converted = df.clone()
+    for row in codebook_df.iter_rows(named=True):
         col = row['column']
         unit = row['unit']
-        if col in df.columns and isinstance(unit, str):
+        if col in df_converted.columns and isinstance(unit, str):
             normalized_unit = unit.lower()
             if 'terawatt-hour' in normalized_unit or 'twh' in normalized_unit:
-                df[col] = df[col] * 1e9  # Convert TWh to kWh
-                logger.info(f"Converted '{col}' from TWh to kWh")
+                df_converted = df_converted.with_column((pl.col(col) * 1e9).alias(col))
+                logger.debug(f"Converted '{col}' from TWh to kWh")
             elif 'million tonne' in normalized_unit or 'million tonnes' in normalized_unit:
-                df[col] = df[col] * 1e6  # Convert million tonnes to tonnes
-                logger.info(f"Converted '{col}' from million tonnes to tonnes")
-            else:
-                logger.info(f"No conversion needed for '{col}' with unit '{unit}'")
-    return df
+                df_converted = df_converted.with_column((pl.col(col) * 1e6).alias(col))
+                logger.debug(f"Converted '{col}' from million tonnes to tonnes")
+    return df_converted
 
-
-def apply_transformations(codebook_df):
+def update_codebook_units(codebook_df: pl.DataFrame) -> pl.DataFrame:
     """
-    Apply transformations to codebook DataFrame.
-    This function is only used in update_codebook.py.
+    Updates the unit field in the codebook based on the conversions applied.
+    
+    Args:
+        codebook_df (pl.DataFrame): The codebook DataFrame.
+        
+    Returns:
+        pl.DataFrame: Updated codebook DataFrame.
     """
-    codebook_df['description'] = codebook_df['description'].str.replace(
-        r'(?i)terawatt-hours', 'kilowatt-hours', regex=True)
-    codebook_df['unit'] = codebook_df['unit'].str.replace(
-        r'(?i)terawatt-hours', 'kilowatt-hours', regex=True)
-    logger.info("Applied transformation: Replaced 'terawatt-hours' with 'kilowatt-hours' in description and unit columns.")
+    mask = codebook_df["unit"].str.to_lowercase().str.contains("terawatt-hour|twh")
+    codebook_updated = codebook_df.with_column(
+        pl.when(mask)
+        .then("kilowatt-hours")
+        .otherwise(pl.col("unit"))
+        .alias("unit")
+    )
+    if mask.any():
+        logger.debug("Updated units from 'terawatt-hours' to 'kilowatt-hours'")
+    return codebook_updated
 
-    codebook_df['description'] = codebook_df['description'].str.replace(
-        r'(?i)million tonnes', 'tonnes', regex=True)
-    codebook_df['unit'] = codebook_df['unit'].str.replace(
-        r'(?i)million tonnes', 'tonnes', regex=True)
-    logger.info("Applied transformation: Replaced 'million tonnes' with 'tonnes' in description and unit columns.")
+def apply_transformations(codebook_df: pl.DataFrame) -> pl.DataFrame:
+    """
+    Apply predefined transformations to the codebook DataFrame.
+    
+    Args:
+        codebook_df (pl.DataFrame): The original codebook DataFrame.
+        
+    Returns:
+        pl.DataFrame: Transformed codebook DataFrame.
+    """
+    codebook_transformed = codebook_df.with_columns([
+        pl.when(pl.col("description").str.contains("terawatt-hours", literal=True, case=False))
+        .then(pl.col("description").str.replace_all("terawatt-hours", "kilowatt-hours", literal=True))
+        .otherwise(pl.col("description"))
+        .alias("description"),
+        pl.when(pl.col("unit").str.contains("terawatt-hours", literal=True, case=False))
+        .then(pl.col("unit").str.replace_all("terawatt-hours", "kilowatt-hours", literal=True))
+        .otherwise(pl.col("unit"))
+        .alias("unit")
+    ])
+    logger.debug("Replaced 'terawatt-hours' with 'kilowatt-hours' in description and unit columns.")
 
-    percentage_columns = codebook_df[codebook_df['unit'].str.contains('%', na=False)]['column'].tolist()
-    for col in percentage_columns:
-        idx = codebook_df[codebook_df['column'] == col].index[0]
-        original_description = codebook_df.at[idx, 'description']
-        if "Measured as a percentage fraction of 1" not in original_description:
-            updated_description = re.sub(r'Measured as a percentage', '', original_description, flags=re.IGNORECASE).strip()
-            updated_description += " (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)"
-            codebook_df.at[idx, 'description'] = updated_description
-            logger.info(f"Updated description for '{col}' to indicate percentage fraction.")
-    return codebook_df
+    codebook_transformed = codebook_transformed.with_columns([
+        pl.when(pl.col("unit").str.contains("million tonnes", case=False, literal=True))
+        .then(pl.col("unit").str.replace_all("million tonnes", "tonnes", literal=True))
+        .otherwise(pl.col("unit"))
+        .alias("unit"),
+        pl.when(pl.col("unit").str.contains("million tonnes", case=False, literal=True))
+        .then(pl.col("description").str.replace_all("million tonnes", "tonnes", literal=True))
+        .otherwise(pl.col("description"))
+        .alias("description")
+    ])
+    logger.debug("Replaced 'million tonnes' with 'tonnes' in description and unit columns.")
+
+    # Update descriptions for percentage units
+    percentage_columns = codebook_transformed.filter(pl.col("unit").str.contains("%", literal=True)).select("column").to_series().to_list()
+    updated_descriptions = []
+    for desc, col in zip(codebook_transformed["description"].to_list(), codebook_transformed["column"].to_list()):
+        if col in percentage_columns and "Measured as a percentage fraction of 1" not in desc:
+            updated_desc = re.sub(r'Measured as a percentage', '', desc, flags=re.IGNORECASE).strip()
+            updated_desc += " (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)"
+            updated_descriptions.append(updated_desc)
+            logger.debug(f"Updated description for '{col}' to indicate percentage fraction.")
+        else:
+            updated_descriptions.append(desc)
+    codebook_transformed = codebook_transformed.with_column(
+        pl.Series("description", updated_descriptions)
+    )
+    
+    return codebook_transformed
