@@ -36,40 +36,60 @@ def filter_codebook(codebook_df, config) -> pl.DataFrame:
     logger.debug(f"Filtered codebook columns: {filtered_codebook.columns}")
     return filtered_codebook
 
-def sync_codebook_columns(filtered_codebook, transformed_codebook) -> pl.DataFrame:
+import polars as pl
+
+def sync_codebook_columns(filtered_codebook: pl.DataFrame, transformed_codebook: pl.DataFrame) -> pl.DataFrame:
     """
-    Ensures the codebook includes all columns in the transformed dataset with descriptions 
-    and units preserved for existing columns.
+    Syncs the codebook to include all columns from the processed dataset, 
+    preserving existing descriptions, units, and sources from the original codebook, 
+    with transformations for column names and specific terms in descriptions.
+
+    Args:
+        filtered_codebook (pl.DataFrame): The original codebook with metadata.
+        transformed_codebook (pl.DataFrame): The codebook with updated column names.
+
+    Returns:
+        pl.DataFrame: Final codebook with original metadata, updated descriptions, and column order matching processed data.
     """
+    # Step 1: Load the processed dataset to align the final order
     processed_data = pl.read_csv("output/processed_energy_data.csv")
     transformed_columns = processed_data.columns
 
-    # Identify missing columns to be added to the codebook
-    codebook_columns = filtered_codebook['column'].to_list()
-    missing_columns = [col for col in transformed_columns if col not in codebook_columns]
-    
-    # Create new rows for missing columns with default descriptions
-    new_rows = pl.DataFrame({
+    # Step 2: Check for columns in processed_data but not in original codebook
+    missing_columns = [col for col in transformed_columns if col not in filtered_codebook["column"].to_list()]
+
+    # Step 3: Create empty entries for truly new columns
+    missing_rows = pl.DataFrame({
         "column": missing_columns,
-        "description": ["Derived metric"] * len(missing_columns),
+        "description": ["No description available"] * len(missing_columns),
         "unit": [None] * len(missing_columns),
         "source": ["Calculated"] * len(missing_columns)
     })
 
-    # Concatenate new rows with the original filtered codebook
-    combined_codebook = pl.concat([filtered_codebook, new_rows], how="vertical")
-    
-    # Map each column to its index in `transformed_columns`
+    # Step 4: Concatenate filtered_codebook with any missing rows
+    combined_codebook = pl.concat([filtered_codebook, missing_rows], how="vertical")
+
+    # Step 5: Apply transformations to column names and specific terms in descriptions
+    combined_codebook = combined_codebook.with_columns([
+        # Rename columns for consistency with processed data
+        pl.when(pl.col("unit").str.contains("terawatt-hours", literal=True))
+        .then(pl.col("unit").str.replace_all("terawatt-hours", "kilowatt-hours", literal=True))
+        .otherwise(pl.col("unit"))
+        .alias("unit"),
+        
+        # Add descriptive clarification for percentage columns
+        pl.when(pl.col("unit").str.contains("%", literal=True))
+        .then(pl.col("description").apply(lambda desc: f"{desc} (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)" if "percentage fraction of 1" not in desc else desc))
+        .otherwise(pl.col("description"))
+        .alias("description")
+    ])
+
+    # Ensure column order matches the transformed columns
     column_order = {col: i for i, col in enumerate(transformed_columns)}
-    
-    # Sort combined_codebook based on this order
     combined_codebook = combined_codebook.sort(
-        by=pl.col("column").map_dict(column_order)
-    )
+        by=pl.col("column").apply(lambda x: column_order.get(x, float("inf"))))
 
-    logger.debug("Synced codebook columns with transformed dataset")
     return combined_codebook
-
 
 def save_filtered_codebook(codebook_df, output_dir='output', filename='codebook.csv'):
     os.makedirs(output_dir, exist_ok=True)
