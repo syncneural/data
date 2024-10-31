@@ -179,6 +179,18 @@ def round_numeric_columns(df):
         if col in df.columns:
             df[col] = df[col].round(0).astype('Int64')
             logger.info(f"Rounded '{col}' to zero decimal places.")
+        percentage_columns = [col for col in df.columns if '%' in col.lower()]
+
+    for col in percentage_columns:
+        if col in df.columns:
+            df[col] = df[col] / 100.0  # Convert to fraction of 1
+            df[col] = df[col].round(2)  # Round to two decimal places
+            logger.info(f"Converted percentage column '{col}' to fraction of 1 and rounded to 2 decimal places.")
+
+    for col in columns_to_round_0:
+        if col in df.columns:
+            df[col] = df[col].round(0).astype('Int64')
+            logger.info(f"Rounded '{col}' to zero decimal places.")
     return df
 
 # Rename columns based on codebook
