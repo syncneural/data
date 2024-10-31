@@ -54,7 +54,8 @@ def sync_codebook_columns(filtered_codebook: pl.DataFrame, processed_data: pl.Da
 
     # Create a new DataFrame with empty lists for each column
     updated_codebook = pl.DataFrame({col: [] for col in new_columns})
-
+    print(f"Filtered codebook columns: {filtered_codebook.columns}")
+    print(f"Updated codebook columns: {updated_codebook.columns}")
     # Merge filtered_codebook into the new DataFrame, handling missing columns
     updated_codebook = updated_codebook.join(filtered_codebook, on="column", how="left")
 
