@@ -131,6 +131,19 @@ def apply_unit_conversion_script(df, codebook_df):
     df = apply_unit_conversion(df, codebook_df)
     return df
 
+def update_codebook_units_after_conversion(codebook_df):
+    """
+    Update the unit field in the codebook_df based on the conversions applied.
+    """
+    for idx, row in codebook_df.iterrows():
+        unit = row['unit']
+        if isinstance(unit, str):
+            normalized_unit = unit.lower()
+            if 'terawatt-hour' in normalized_unit or 'twh' in normalized_unit:
+                codebook_df.at[idx, 'unit'] = 'kilowatt-hours'
+                logger.info(f"Updated unit for '{row['column']}' to 'kilowatt-hours'")
+    return codebook_df
+
 def round_numeric_columns(df):
     columns_to_round_0 = ['population', 'gdp']
 
@@ -144,7 +157,7 @@ def round_numeric_columns(df):
     for col in columns_to_round_0:
         if col in df.columns:
             df[col] = df[col].round(0).astype('Int64')
-            logger.info(f"Rounded {col} to zero decimal places.")
+            logger.info(f"Rounded '{col}' to zero decimal places.")
     return df
 
 def rename_columns(df_latest, codebook_df):
@@ -182,6 +195,7 @@ def main():
     df_filtered = filter_main_dataset(df, config)
     codebook_df = load_codebook()
     df_filtered = apply_unit_conversion_script(df_filtered, codebook_df)
+    codebook_df = update_codebook_units_after_conversion(codebook_df)
     df_filtered = filter_year_range(df_filtered, config)
     df_latest = prioritize_active_year(df_filtered, config)
 
@@ -195,7 +209,7 @@ def main():
 
     output_path = os.path.join(output_dir, 'processed_energy_data.csv')
     df_latest.to_csv(output_path, index=False)
-    logger.info(f"Processed energy data saved to {output_path}")
+    logger.info(f"Processed energy data saved to '{output_path}'")
 
 if __name__ == "__main__":
     main()
