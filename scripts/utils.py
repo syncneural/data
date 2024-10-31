@@ -71,10 +71,10 @@ def transform_column_names(df: pl.DataFrame, is_codebook: bool = False) -> pl.Da
         new_columns.append(new_col_name)
         logger.debug(f"Transformed '{original_col_name}' to '{new_col_name}'")
 
-    # Ensure transformed column names do not duplicate existing ones
     if is_codebook:
+        # Handle transformation of the 'column' field by creating a new DataFrame
         df_transformed = df.drop(["column"]).with_columns([
-            pl.lit(new_columns[idx]).alias("column") for idx in range(len(new_columns))
+            pl.Series("column", new_columns)
         ])
     else:
         rename_map = {old: new for old, new in zip(columns, new_columns)}
