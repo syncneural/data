@@ -112,26 +112,34 @@ def apply_unit_conversion(df: pl.DataFrame, codebook_df: pl.DataFrame) -> pl.Dat
     return df_converted
 
 
+import polars as pl
+
 def update_codebook_units(codebook_df: pl.DataFrame) -> pl.DataFrame:
     """
-    Updates the unit field in the codebook based on the conversions applied.
-    
+    Updates the 'unit' field in the codebook DataFrame from 'terawatt-hours' or 'TWh' to 'kilowatt-hours'.
+
     Args:
         codebook_df (pl.DataFrame): The codebook DataFrame.
-        
+
     Returns:
-        pl.DataFrame: Updated codebook DataFrame.
+        pl.DataFrame: Updated codebook DataFrame with converted units.
     """
-    mask = codebook_df["unit"].str.to_lowercase().str.contains("terawatt-hour|twh")
-    codebook_updated = codebook_df.with_column(
-        pl.when(mask)
+    # Create a mask for rows that contain 'terawatt-hours' or 'TWh' in the 'unit' column
+    mask_twh = codebook_df["unit"].str.to_lowercase().str.contains("terawatt-hour|twh")
+    
+    # Use the mask to update the 'unit' column only where applicable
+    codebook_updated = codebook_df.with_columns(
+        pl.when(mask_twh)
         .then("kilowatt-hours")
         .otherwise(pl.col("unit"))
         .alias("unit")
     )
-    if mask.any():
+    
+    if mask_twh.any():
         logger.debug("Updated units from 'terawatt-hours' to 'kilowatt-hours'")
+    
     return codebook_updated
+
 
 def apply_transformations(codebook_df: pl.DataFrame) -> pl.DataFrame:
     """
