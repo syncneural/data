@@ -12,6 +12,8 @@ import threading
 logger = logging.getLogger("CombinedScript")
 logging.basicConfig(level=logging.INFO)
 
+# Utility Functions
+
 # Download datasets using threading
 def download_datasets():
     if not os.path.exists('owid-energy-data.csv'):
@@ -30,11 +32,6 @@ def download_datasets():
     else:
         logger.info("owid-energy-codebook.csv already exists.")
 
-# Load codebook function
-def load_codebook():
-    codebook_df = pd.read_csv('owid-energy-codebook.csv')
-    return codebook_df
-
 # Load or create configuration function
 def load_or_create_config():
     config_path = 'config.yaml'
@@ -45,8 +42,11 @@ def load_or_create_config():
     else:
         config = {
             'columns_to_keep': ['country', 'year', 'iso_code', 'population', 'gdp'],
+            'timeline_columns_to_keep': ['country', 'iso_code', 'year', 'population', 'gdp', 'biofuel_electricity', 'carbon_intensity_elec', 'coal_electricity', 'electricity_demand', 'electricity_generation', 'fossil_electricity', 'gas_electricity', 'hydro_electricity', 'low_carbon_electricity', 'nuclear_electricity', 'oil_electricity', 'other_renewable_electricity', 'other_renewable_exc_biofuel_electricity', 'per_capita_electricity', 'renewables_electricity', 'solar_electricity', 'wind_electricity'],
             'active_year': 2022,
             'previousYearRange': 5,
+            'timeline_start_year': 2010,
+            'timeline_end_year': 2022,
             'force_update': True
         }
         with open(config_path, 'w') as f:
@@ -58,6 +58,51 @@ def load_or_create_config():
 def load_main_dataset():
     df = pd.read_csv('owid-energy-data.csv')
     return df
+
+# Load codebook function
+def load_codebook():
+    codebook_df = pd.read_csv('owid-energy-codebook.csv')
+    return codebook_df
+
+# Filter dataset by year range
+def filter_dataset_by_year_range(df, start_year, end_year):
+    return df[(df['year'] >= start_year) & (df['year'] <= end_year)]
+
+# Filter dataset columns
+def filter_dataset_columns(df, columns_to_keep):
+    return df[columns_to_keep].copy()
+
+# Sync codebook columns with processed energy data
+def sync_codebook_columns(filtered_codebook):
+    processed_data = pd.read_csv('output/processed_energy_data.csv')
+    transformed_columns = processed_data.columns.tolist()
+    codebook_columns = filtered_codebook['column'].tolist()
+    new_columns = [col for col in transformed_columns if col not in codebook_columns]
+
+    for col in new_columns:
+        filtered_codebook = pd.concat([filtered_codebook, pd.DataFrame({
+            'column': [col],
+            'description': ['Derived metric'],
+            'unit': [''],
+            'source': ['Calculated']
+        })], ignore_index=True)
+
+    filtered_codebook = filtered_codebook.set_index('column').reindex(transformed_columns).reset_index()
+
+    filtered_codebook['description'] = filtered_codebook['description'].fillna('No description available')
+    filtered_codebook['unit'] = filtered_codebook['unit'].fillna('')
+
+    return filtered_codebook
+
+# Save filtered codebook to output directory
+def save_filtered_codebook(filtered_codebook):
+    output_dir = 'output'
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, 'codebook.csv')
+    filtered_codebook.to_csv(output_path, index=False)
+    logger.info(f"Filtered codebook saved to {output_path}")
+
+# Core Processing Functions
 
 # Filter main dataset function
 def filter_main_dataset(df, config):
@@ -166,7 +211,7 @@ def update_codebook_units_after_conversion(codebook_df):
 
 # Round numeric columns
 def round_numeric_columns(df):
-    columns_to_round_0 = ['population', 'gdp']
+    columns_to_round_0 = ['Population', 'GDP ISD']
 
     kwh_columns = [col for col in df.columns if 'kwh' in col.lower()]
     carbon_intensity_columns = [col for col in df.columns if 'gco₂e/kwh' in col.lower() or 'gco2e/kwh' in col.lower()]
@@ -179,32 +224,7 @@ def round_numeric_columns(df):
         if col in df.columns:
             df[col] = df[col].round(0).astype('Int64')
             logger.info(f"Rounded '{col}' to zero decimal places.")
-        percentage_columns = [col for col in df.columns if '%' in col.lower()]
 
-    for col in percentage_columns:
-        if col in df.columns:
-            df[col] = df[col] / 100.0  # Convert to fraction of 1
-            df[col] = df[col].round(2)  # Round to two decimal places
-            logger.info(f"Converted percentage column '{col}' to fraction of 1 and rounded to 2 decimal places.")
-
-    for col in columns_to_round_0:
-        if col in df.columns:
-            df[col] = df[col].round(0).astype('Int64')
-            logger.info(f"Rounded '{col}' to zero decimal places.")
-        columns_to_round_0 = ['Population', 'GDP ISD']
-
-    kwh_columns = [col for col in df.columns if 'kwh' in col.lower()]
-    carbon_intensity_columns = [col for col in df.columns if 'gco₂e/kwh' in col.lower() or 'gco2e/kwh' in col.lower()]
-
-    columns_to_round_0.extend(kwh_columns)
-    columns_to_round_0.extend(carbon_intensity_columns)
-    columns_to_round_0 = list(set(columns_to_round_0))
-
-    for col in columns_to_round_0:
-        if col in df.columns:
-            df[col] = df[col].round(0).astype('Int64')
-            logger.info(f"Rounded '{col}' to zero decimal places.")
-    
     percentage_columns = [col for col in df.columns if '%' in col.lower()]
 
     for col in percentage_columns:
@@ -288,67 +308,8 @@ def transform_column_names(df, is_codebook=False):
     logger.info(f"Final column names: {df.columns.tolist()}")
     return df
 
-# Apply additional transformations to codebook
-def apply_transformations(codebook_df):
-    codebook_df['description'] = codebook_df['description'].str.replace(
-        r'(?i)terawatt-hours', 'kilowatt-hours', regex=True)
-    codebook_df['unit'] = codebook_df['unit'].str.replace(
-        r'(?i)terawatt-hours', 'kilowatt-hours', regex=True)
-    logger.info("Applied transformation: Replaced 'terawatt-hours' with 'kilowatt-hours' in description and unit columns.")
+# Main Function
 
-    codebook_df['description'] = codebook_df['description'].str.replace(
-        r'(?i)million tonnes', 'tonnes', regex=True)
-    codebook_df['unit'] = codebook_df['unit'].str.replace(
-        r'(?i)million tonnes', 'tonnes', regex=True)
-    logger.info("Applied transformation: Replaced 'million tonnes' with 'tonnes' in description and unit columns.")
-
-    percentage_columns = codebook_df[codebook_df['unit'].str.contains('%', na=False)]['column'].tolist()
-    for col in percentage_columns:
-        idx = codebook_df[codebook_df['column'] == col].index[0]
-        original_description = codebook_df.at[idx, 'description']
-        if "Measured as a percentage fraction of 1" not in original_description:
-            updated_description = re.sub(r'Measured as a percentage', '', original_description, flags=re.IGNORECASE).strip()
-            updated_description += " (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)"
-            codebook_df.at[idx, 'description'] = updated_description
-            logger.info(f"Updated description for '{col}' to indicate percentage fraction.")
-    return codebook_df
-
-# Sync codebook columns with processed energy data
-def sync_codebook_columns(filtered_codebook):
-    processed_data = pd.read_csv('output/processed_energy_data.csv')
-    transformed_columns = processed_data.columns.tolist()
-    codebook_columns = filtered_codebook['column'].tolist()
-    new_columns = [col for col in transformed_columns if col not in codebook_columns]
-
-    for col in new_columns:
-        filtered_codebook = pd.concat([filtered_codebook, pd.DataFrame({
-            'column': [col],
-            'description': ['Derived metric'],
-            'unit': [''],
-            'source': ['Calculated']
-        })], ignore_index=True)
-
-    filtered_codebook = filtered_codebook.set_index('column').reindex(transformed_columns).reset_index()
-
-    filtered_codebook['description'] = filtered_codebook['description'].fillna('No description available')
-    filtered_codebook['unit'] = filtered_codebook['unit'].fillna('')
-
-    return filtered_codebook
-
-# Save filtered codebook to output directory
-def save_filtered_codebook(filtered_codebook):
-    output_dir = 'output'
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, 'codebook.csv')
-    filtered_codebook.to_csv(output_path, index=False)
-    logger.info(f"Filtered codebook saved to {output_path}")
-
-# Filter codebook function
-def filter_codebook(codebook_df, config):
-    filtered_codebook = codebook_df[codebook_df['column'].isin(config['columns_to_keep'])].copy()
-    return filtered_codebook
-
-# Main function
 def main():
     logger.info("Starting combined script.")
     download_datasets()
@@ -357,6 +318,8 @@ def main():
     df = load_main_dataset()
     df_filtered = filter_main_dataset(df, config)
     codebook_df = load_codebook()
+
+    # Process for `processed_energy_data.csv`
     df_filtered = apply_unit_conversion_script(df_filtered, codebook_df)
     codebook_df = update_codebook_units_after_conversion(codebook_df)
     df_filtered = filter_year_range(df_filtered, config)
@@ -377,12 +340,17 @@ def main():
     df_latest.to_csv(output_path, index=False)
     logger.info(f"Processed energy data saved to {output_path}")
 
-    # Update codebook
-    codebook_df = apply_transformations(codebook_df)
-    filtered_codebook = filter_codebook(codebook_df, config)
-    transformed_codebook = transform_column_names(filtered_codebook.copy(), is_codebook=True)
-    transformed_codebook = sync_codebook_columns(transformed_codebook)
-    save_filtered_codebook(transformed_codebook)
+    # Process for timeline data `processed_energy_data_XXXX_YYYY.csv`
+    timeline_start_year = config['timeline_start_year']
+    timeline_end_year = config['timeline_end_year']
+    timeline_columns_to_keep = config['timeline_columns_to_keep']
+    df_timeline = filter_dataset_by_year_range(df, timeline_start_year, timeline_end_year)
+    df_timeline = filter_dataset_columns(df_timeline, timeline_columns_to_keep)
+
+    timeline_output_path = os.path.join(output_dir, f'processed_energy_data_{timeline_start_year}_{timeline_end_year}.csv')
+    df_timeline.to_csv(timeline_output_path, index=False)
+    logger.info(f"Timeline processed energy data saved to {timeline_output_path}")
 
 if __name__ == "__main__":
     main()
+
