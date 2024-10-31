@@ -9,8 +9,7 @@ logger = logging.getLogger("CodebookUpdater")
 logger.setLevel(logging.DEBUG)
 ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
-formatter = logging.Formatter('[%(levelname)s]   
- %(name)s - %(message)s')
+formatter = logging.Formatter('[%(levelname)s]%(name)s - %(message)s')
 ch.setFormatter(formatter)
 if not logger.hasHandlers():
     logger.addHandler(ch)   
