@@ -34,6 +34,9 @@ jobs:
     - name: List scripts directory contents
       run: ls -la scripts/
 
+    - name: Create output directory
+      run: mkdir -p output
+
     - name: List output directory contents before scripts run
       run: ls -la output/ || echo "Output directory does not exist yet."
 
@@ -55,7 +58,7 @@ jobs:
       run: |
         git config --global user.name "github-actions"
         git config --global user.email "github-actions@github.com"
-        git add -f output/*.csv
+        git add output/*.csv
         git commit -m "Update processed energy data and codebook" || echo "Nothing to commit"
         git push
 
