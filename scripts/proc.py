@@ -135,6 +135,21 @@ def fill_gdp_using_world_bank(df, active_year, previousYearRange):
 
 # Apply unit conversion to dataset
 def apply_unit_conversion_script(df, codebook_df):
+    def apply_unit_conversion(df, codebook_df):
+        for idx, row in codebook_df.iterrows():
+            col = row['column']
+            unit = row['unit']
+            if col in df.columns and isinstance(unit, str):
+                normalized_unit = unit.lower()
+                if 'terawatt-hour' in normalized_unit or 'twh' in normalized_unit:
+                    df[col] = df[col] * 1e9  # Convert TWh to kWh
+                    logger.info(f"Converted '{col}' from TWh to kWh")
+                elif 'million tonne' in normalized_unit or 'million tonnes' in normalized_unit:
+                    df[col] = df[col] * 1e6  # Convert million tonnes to tonnes
+                    logger.info(f"Converted '{col}' from million tonnes to tonnes")
+                else:
+                    logger.info(f"No conversion needed for '{col}' with unit '{unit}'")
+        return df
     df = apply_unit_conversion(df, codebook_df)
     return df
 
@@ -220,108 +235,4 @@ def transform_column_names(df, is_codebook=False):
             elif 'gco2e/kwh' in normalized_unit or 'gramsofco2equivalentsperkilowatt-hour' in normalized_unit:
                 new_col_name += ' gCO₂e/kWh'
             elif '%' in normalized_unit:
-                new_col_name += ' %'
-            elif 'international-$' in normalized_unit:
-                new_col_name += ' ISD'
-            elif 'tonnes' in normalized_unit:
-                new_col_name += ' tonnes'
-            elif 'year' in normalized_unit:
-                pass
-
-        new_columns.append(new_col_name)
-        logger.info(f"Transformed '{original_col_name}' to '{new_col_name}'")
-
-    if is_codebook:
-        df['column'] = new_columns
-    else:
-        df.columns = new_columns
-
-    logger.info(f"Final column names: {df.columns.tolist()}")
-    return df
-
-# Apply additional transformations to codebook
-def apply_transformations(codebook_df):
-    codebook_df['description'] = codebook_df['description'].str.replace(
-        r'(?i)terawatt-hours', 'kilowatt-hours', regex=True)
-    codebook_df['unit'] = codebook_df['unit'].str.replace(
-        r'(?i)terawatt-hours', 'kilowatt-hours', regex=True)
-    logger.info("Applied transformation: Replaced 'terawatt-hours' with 'kilowatt-hours' in description and unit columns.")
-
-    codebook_df['description'] = codebook_df['description'].str.replace(
-        r'(?i)million tonnes', 'tonnes', regex=True)
-    codebook_df['unit'] = codebook_df['unit'].str.replace(
-        r'(?i)million tonnes', 'tonnes', regex=True)
-    logger.info("Applied transformation: Replaced 'million tonnes' with 'tonnes' in description and unit columns.")
-
-    percentage_columns = codebook_df[codebook_df['unit'].str.contains('%', na=False)]['column'].tolist()
-    for col in percentage_columns:
-        idx = codebook_df[codebook_df['column'] == col].index[0]
-        original_description = codebook_df.at[idx, 'description']
-        if "Measured as a percentage fraction of 1" not in original_description:
-            updated_description = re.sub(r'Measured as a percentage', '', original_description, flags=re.IGNORECASE).strip()
-            updated_description += " (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)"
-            codebook_df.at[idx, 'description'] = updated_description
-            logger.info(f"Updated description for '{col}' to indicate percentage fraction.")
-    return codebook_df
-
-# Sync codebook columns with processed energy data
-def sync_codebook_columns(filtered_codebook):
-    processed_data = pd.read_csv('output/processed_energy_data.csv')
-    transformed_columns = processed_data.columns.tolist()
-    codebook_columns = filtered_codebook['column'].tolist()
-    new_columns = [col for col in transformed_columns if col not in codebook_columns]
-
-    for col in new_columns:
-        filtered_codebook = pd.concat([filtered_codebook, pd.DataFrame({
-            'column': [col],
-            'description': ['Derived metric'],
-            'unit': [''],
-            'source': ['Calculated']
-        })], ignore_index=True)
-
-    filtered_codebook = filtered_codebook.set_index('column').reindex(transformed_columns).reset_index()
-    filtered_codebook['description'] = filtered_codebook['description'].fillna('No description available')
-    filtered_codebook['unit'] = filtered_codebook['unit'].fillna('')
-
-    return filtered_codebook
-
-# Save filtered codebook function
-def save_filtered_codebook(filtered_codebook):
-    output_dir = 'output'
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, 'codebook.csv')
-    filtered_codebook.to_csv(output_path, index=False)
-    logger.info(f"Filtered codebook saved to {output_path}")
-
-# Main function
-def main():
-    logger.info("Starting combined script.")
-    download_datasets()
-    config = load_or_create_config()
-    df = load_main_dataset()
-    df_filtered = filter_main_dataset(df, config)
-    codebook_df = load_codebook()
-    df_filtered = apply_unit_conversion_script(df_filtered, codebook_df)
-    codebook_df = update_codebook_units_after_conversion(codebook_df)
-    df_filtered = filter_year_range(df_filtered, config)
-    df_latest = prioritize_active_year(df_filtered, config)
-    df_latest = fill_gdp_using_world_bank(df_latest, config['active_year'], config['previousYearRange'])
-    df_latest = rename_columns(df_latest, codebook_df)
-    df_latest = round_numeric_columns(df_latest)
-    output_dir = 'output'
-    os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, 'processed_energy_data.csv')
-    df_latest.to_csv(output_path, index=False)
-    logger.info(f"Processed energy data saved to {output_path}")
-
-    # Load codebook and apply transformations
-    config = load_or_create_config()
-    codebook_df = load_codebook()
-    codebook_df = apply_transformations(codebook_df)
-    filtered_codebook = filter_codebook(codebook_df, config)
-    transformed_codebook = transform_column_names(filtered_codebook.copy(), is_codebook=True)
-    transformed_codebook = sync_codebook_columns(transformed_codebook)
-    save_filtered_codebook(transformed_codebook)
-
-if __name__ == "__main__":
-    main()
+                new_col_name +=
