@@ -195,21 +195,24 @@ def main():
     df_filtered = filter_main_dataset(df, config)
     codebook_df = load_codebook()
     df_filtered = apply_unit_conversion_script(df_filtered, codebook_df)
-    codebook_df = update_codebook_units_after_conversion(codebook_df)  # Update units after conversion
+    codebook_df = update_codebook_units_after_conversion(codebook_df)
     df_filtered = filter_year_range(df_filtered, config)
     df_latest = prioritize_active_year(df_filtered, config)
 
     df_latest = fill_gdp_using_world_bank(df_latest, config['active_year'], config['previousYearRange'])
-    df_latest = round_numeric_columns(df_latest)
 
+    # **First: Rename columns to include 'kWh'**
     df_latest = rename_columns(df_latest, codebook_df)
+
+    # **Second: Round numeric columns, now that 'kWh' is in the column names**
+    df_latest = round_numeric_columns(df_latest)
 
     output_dir = 'output'
     os.makedirs(output_dir, exist_ok=True)
 
     output_path = os.path.join(output_dir, 'processed_energy_data.csv')
     df_latest.to_csv(output_path, index=False)
-    logger.info(f"Processed energy data saved to '{output_path}'")
+    logger.info(f"Processed energy data saved to {output_path}")
 
 if __name__ == "__main__":
     main()
