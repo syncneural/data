@@ -352,17 +352,22 @@ def main():
     codebook_df = apply_transformations(codebook_df)
 
     # Process for `processed_energy_data.csv`
-    df_filtered = apply_unit_conversion_script(df_filtered, codebook_df)
-    codebook_df = update_codebook_units_after_conversion(codebook_df)
     df_filtered = filter_year_range(df_filtered, config)
     df_latest = prioritize_active_year(df_filtered, config)
 
+    # Fill missing GDP data using World Bank API
     df_latest = fill_gdp_using_world_bank(df_latest, config['active_year'], config['previousYearRange'])
 
-    # Rename columns to include 'kWh'
+    # Apply unit conversions before renaming columns
+    df_latest = apply_unit_conversion_script(df_latest, codebook_df)
+
+    # Update codebook units after conversions
+    codebook_df = update_codebook_units_after_conversion(codebook_df)
+
+    # Rename columns to include updated units (e.g., 'kWh')
     df_latest = rename_columns(df_latest, codebook_df)
 
-    # Round numeric columns, now that 'kWh' is in the column names
+    # Round numeric columns after all transformations are applied
     df_latest = round_numeric_columns(df_latest)
 
     # Save processed energy data
@@ -379,10 +384,10 @@ def main():
     df_timeline = filter_dataset_by_year_range(df, timeline_start_year, timeline_end_year)
     df_timeline = filter_dataset_columns(df_timeline, timeline_columns_to_keep)
 
-    # Apply unit conversion to timeline dataset
+    # Apply unit conversions to timeline dataset
     df_timeline = apply_unit_conversion_script(df_timeline, codebook_df)
 
-    # Rename columns for timeline dataset
+    # Rename columns for timeline dataset after unit conversions
     df_timeline = rename_columns(df_timeline, codebook_df)
 
     # Round numeric columns for timeline dataset
@@ -395,4 +400,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
