@@ -108,44 +108,38 @@ def fill_gdp_using_world_bank(df, active_year, previousYearRange):
         threads.append(thread)
         thread.start()
 
-    # Wait for all threads to complete
     for thread in threads:
         thread.join()
 
-    # Fill the GDP data from the results
     for index, row in missing_gdp.iterrows():
         country_code = row['iso_code']
         gdp_data = gdp_results.get(country_code, None)
         if gdp_data:
             latest_year = max(gdp_data.keys())
-            df.loc[index, 'gdp'] = gdp_data[latest_year]  # Use .loc[] to ensure correct DataFrame modification
+            df.loc[index, 'gdp'] = gdp_data[latest_year]
             df.loc[index, 'latest_data_year'] = latest_year
             logger.info(f"Filled GDP for {row['country']} using year: {latest_year}")
         else:
             logger.warning(f"No GDP data available within the specified range for {row['country']}")
     return df
 
-def apply_unit_conversion(df):
-    for col in df.columns:
-        if df[col].dtype != 'object':
-            col_lower = col.lower()
-            if 'twh' in col_lower:
-                df[col] = df[col] * 1e9  # Convert TWh to kWh
-                logger.info(f"Converted {col} from TWh to kWh")
-            elif 'million tonnes' in col_lower:
-                df[col] = df[col] * 1e6  # Convert million tonnes to tonnes
-                logger.info(f"Converted {col} from million tonnes to tonnes")
+def attach_units_to_df(df, codebook_df):
+    unit_map = dict(zip(codebook_df['column'], codebook_df['unit']))
+    df.units = [unit_map.get(col, None) for col in df.columns]
     return df
 
 def round_numeric_columns(df):
     columns_to_round_0 = ['population', 'gdp']
 
-    kwh_columns = [col for col in df.columns if 'kwh' in col.lower()]
+    if hasattr(df, 'units'):
+        kwh_columns = [col for col, unit in zip(df.columns, df.units) if unit and 'kilowatt-hours' in unit.lower()]
+        carbon_intensity_columns = [col for col, unit in zip(df.columns, df.units) if unit and 'gco₂e/kwh' in unit.lower()]
+    else:
+        kwh_columns = []
+        carbon_intensity_columns = []
+
     columns_to_round_0.extend(kwh_columns)
-
-    carbon_intensity_columns = [col for col in df.columns if 'gco₂e/kwh' in col.lower() or 'gco2e/kwh' in col.lower()]
     columns_to_round_0.extend(carbon_intensity_columns)
-
     columns_to_round_0 = list(set(columns_to_round_0))
 
     for col in columns_to_round_0:
@@ -171,7 +165,15 @@ def rename_columns(df_latest, codebook_df):
     rename_map = dict(zip(codebook_df['column'], transformed_codebook['column']))
 
     df_latest.rename(columns=rename_map, inplace=True)
-    return df_latest
+    return df_latest, codebook_df
+
+def convert_percentages_to_fractions(df, codebook_df):
+    percentage_columns = codebook_df[codebook_df['unit'].str.contains('%', na=False)]['column'].tolist()
+    for col in percentage_columns:
+        if col in df.columns:
+            df[col] = (df[col] / 100.0).round(2)
+            logger.info(f"Converted {col} from percentage to fraction and rounded to 2 decimal places.")
+    return df, codebook_df
 
 def main():
     logger.info("Starting energy data processing script.")
@@ -180,15 +182,21 @@ def main():
     config = load_or_create_config()
     df = load_main_dataset()
 
+    codebook_df = apply_transformations(codebook_df)
+
     df_filtered = filter_main_dataset(df, config)
-    df_filtered = apply_unit_conversion(df_filtered)
+    df_filtered, codebook_df = apply_unit_conversion(df_filtered, codebook_df)
+    df_filtered = attach_units_to_df(df_filtered, codebook_df)
+    df_filtered, codebook_df = convert_percentages_to_fractions(df_filtered, codebook_df)
     df_filtered = filter_year_range(df_filtered, config)
     df_latest = prioritize_active_year(df_filtered, config)
+
+    df_latest = attach_units_to_df(df_latest, codebook_df)
 
     df_latest = fill_gdp_using_world_bank(df_latest, config['active_year'], config['previousYearRange'])
     df_latest = round_numeric_columns(df_latest)
 
-    df_latest = rename_columns(df_latest, codebook_df)
+    df_latest, codebook_df = rename_columns(df_latest, codebook_df)
 
     output_dir = 'output'
     os.makedirs(output_dir, exist_ok=True)
