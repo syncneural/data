@@ -62,6 +62,7 @@ def transform_column_names(df, is_codebook=False):
 def apply_unit_conversion(df):
     """
     Applies unit conversions to the DataFrame based on column names containing units.
+    This function does NOT modify the codebook.
     """
     for col in df.columns:
         col_lower = col.lower()
