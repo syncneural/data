@@ -50,13 +50,14 @@ def sync_codebook_columns(filtered_codebook: pl.DataFrame, processed_data: pl.Da
         pl.DataFrame: Final codebook with original metadata, updated descriptions, and column order matching processed data.
     """
 
-    # Update the 'column' column of the original codebook with the column names from the processed data
-    filtered_codebook = filtered_codebook.set_item("column", processed_data.columns)
+    # Create a new DataFrame with updated 'column' data
+    updated_codebook = pl.DataFrame(filtered_codebook.iloc[:, :-1])  # Exclude the 'column' column
+    updated_codebook = updated_codebook.set_column("column", processed_data.columns)
 
     # Apply any necessary transformations to descriptions and units, if needed
     # ... (your transformation logic here)
 
-    return filtered_codebook
+    return updated_codebook
 
 def save_filtered_codebook(codebook_df, output_dir='output', filename='codebook.csv'):
     os.makedirs(output_dir, exist_ok=True)
