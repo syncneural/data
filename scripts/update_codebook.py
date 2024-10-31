@@ -88,7 +88,7 @@ def sync_codebook_columns(filtered_codebook: pl.DataFrame, transformed_codebook:
     # Step 5: Add a temporary 'sort_order' column based on `column_order`
     # Use `apply` on a Polars Series to generate 'sort_order'
     sort_order_series = combined_codebook["column"].apply(lambda col: column_order.get(col, float("inf")))
-    combined_codebook = combined_codebook.with_column(pl.Series("sort_order", sort_order_series))
+    combined_codebook = combined_codebook.with_columns(pl.Series("sort_order", sort_order_series))
 
     # Step 6: Sort by `sort_order` column and remove it afterward
     final_codebook = combined_codebook.sort("sort_order").drop("sort_order")
