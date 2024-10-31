@@ -33,15 +33,39 @@ def load_or_create_config(codebook_df: pl.DataFrame, config_path: str = 'config.
 def filter_codebook(codebook_df: pl.DataFrame, config: dict) -> pl.DataFrame:
     return codebook_df.filter(pl.col("column").is_in(config["columns_to_keep"]))
 
-def sync_codebook_columns(filtered_codebook: pl.DataFrame) -> pl.DataFrame:
-    processed_data = pl.read_csv("output/processed_energy_data.csv")
-    transformed_columns = processed_data.columns
+def sync_codebook_columns(filtered_codebook: pl.DataFrame, transformed_codebook: pl.DataFrame) -> pl.DataFrame:
+    """
+    Ensures the codebook has all necessary columns from the transformed dataset.
 
-    filtered_codebook = filtered_codebook.filter(pl.col("column").is_in(transformed_columns))
-    for col in transformed_columns:
-        if col not in filtered_codebook["column"].to_list():
-            new_row = pl.DataFrame({"column": [col], "description": ["Derived metric"], "unit": [""], "source": ["Calculated"]})
-            filtered_codebook = pl.concat([filtered_codebook, new_row])
+    Args:
+        filtered_codebook (pl.DataFrame): Filtered codebook DataFrame.
+        transformed_codebook (pl.DataFrame): DataFrame with the latest transformed codebook columns.
+
+    Returns:
+        pl.DataFrame: Codebook DataFrame with any missing columns added.
+    """
+    # Identify columns in `transformed_codebook` not present in `filtered_codebook`
+    transformed_columns = set(transformed_codebook['column'].to_list())
+    existing_columns = set(filtered_codebook['column'].to_list())
+    missing_columns = transformed_columns - existing_columns
+
+    # Append missing columns to `filtered_codebook`
+    new_rows = []
+    for col in missing_columns:
+        new_rows.append({
+            'column': col,
+            'description': 'Derived metric',
+            'unit': '',
+            'source': 'Calculated'
+        })
+
+    if new_rows:
+        new_rows_df = pl.DataFrame(new_rows, schema=filtered_codebook.schema)
+        filtered_codebook = pl.concat([filtered_codebook, new_rows_df], how="diagonal")
+
+    # Ensure column order matches `transformed_codebook`
+    filtered_codebook = filtered_codebook.join(transformed_codebook, on="column", how="left")
+
     return filtered_codebook
 
 def save_filtered_codebook(filtered_codebook: pl.DataFrame, output_dir: str = 'output') -> None:
