@@ -70,7 +70,10 @@ def filter_dataset_by_year_range(df, start_year, end_year):
 
 # Filter dataset columns
 def filter_dataset_columns(df, columns_to_keep):
-    return df[columns_to_keep].copy()
+    df_filtered = df[columns_to_keep].copy()
+    # Drop rows where either 'population' or 'electricity_demand' is missing
+    df_filtered.dropna(subset=['population', 'electricity_demand'], how='any', inplace=True)
+    return df_filtered
 
 # Sync codebook columns with processed energy data
 def sync_codebook_columns(filtered_codebook):
@@ -136,7 +139,7 @@ def apply_transformations(codebook_df):
 # Filter main dataset function
 def filter_main_dataset(df, config):
     df_filtered = df[config['columns_to_keep']].copy()
-    df_filtered.dropna(subset=['population'], inplace=True)
+    df_filtered.dropna(subset=['population', 'electricity_demand'], how='any', inplace=True)
     return df_filtered
 
 # Filter year range function
