@@ -1,3 +1,5 @@
+# update_codebook.py
+
 import os
 import logging
 import pandas as pd
@@ -18,7 +20,6 @@ def load_or_create_config(codebook_df):
             config = yaml.safe_load(f)
             logger.info(f"Loaded configuration from {config_path}")
     else:
-        # Default configuration if config.yaml does not exist
         columns_to_keep = codebook_df['column'].tolist()
         config = {
             'columns_to_keep': columns_to_keep,
@@ -32,33 +33,26 @@ def load_or_create_config(codebook_df):
     return config
 
 def filter_codebook(codebook_df, config):
-    # Keep only the rows where 'column' is in config['columns_to_keep']
     filtered_codebook = codebook_df[codebook_df['column'].isin(config['columns_to_keep'])].copy()
     return filtered_codebook
 
 def sync_codebook_columns(filtered_codebook):
-    # Load processed data
     processed_data = pd.read_csv('output/processed_energy_data.csv')
     transformed_columns = processed_data.columns.tolist()
 
-    # Update the 'column' names in the codebook to match the processed data
     codebook_columns = filtered_codebook['column'].tolist()
     new_columns = [col for col in transformed_columns if col not in codebook_columns]
 
-    # Add new columns to the codebook
     for col in new_columns:
-        # Add new rows for the new columns
         filtered_codebook = pd.concat([filtered_codebook, pd.DataFrame({
             'column': [col],
             'description': ['Derived metric'],
-            'unit': [''],  # Specify unit if known
+            'unit': [''],
             'source': ['Calculated']
         })], ignore_index=True)
 
-    # Reorder the codebook to match the order of transformed_columns
     filtered_codebook = filtered_codebook.set_index('column').reindex(transformed_columns).reset_index()
 
-    # Fill missing descriptions and units with placeholders if necessary
     filtered_codebook['description'] = filtered_codebook['description'].fillna('No description available')
     filtered_codebook['unit'] = filtered_codebook['unit'].fillna('')
 
@@ -76,7 +70,6 @@ def main():
     codebook_df = load_codebook()
     config = load_or_create_config(codebook_df)
 
-    # Apply transformations to codebook_df
     codebook_df = apply_transformations(codebook_df)
 
     filtered_codebook = filter_codebook(codebook_df, config)
