@@ -70,7 +70,10 @@ def filter_dataset_by_year_range(df, start_year, end_year):
 
 # Filter dataset columns
 def filter_dataset_columns(df, columns_to_keep):
-    return df[columns_to_keep].copy()
+    df_filtered = df[columns_to_keep].copy()
+    # Drop rows where either 'population' or 'electricity_demand' is missing
+    df_filtered.dropna(subset=['population', 'electricity_demand'], how='any', inplace=True)
+    return df_filtered
 
 # Sync codebook columns with processed energy data
 def sync_codebook_columns(filtered_codebook):
@@ -102,12 +105,41 @@ def save_filtered_codebook(filtered_codebook):
     filtered_codebook.to_csv(output_path, index=False)
     logger.info(f"Filtered codebook saved to {output_path}")
 
+# Apply transformations to codebook
+def apply_transformations(codebook_df):
+    """
+    Apply transformations to codebook DataFrame.
+    This function is only used in update_codebook.py.
+    """
+    codebook_df['description'] = codebook_df['description'].str.replace(
+        r'(?i)terawatt-hours', 'kilowatt-hours', regex=True)
+    codebook_df['unit'] = codebook_df['unit'].str.replace(
+        r'(?i)terawatt-hours', 'kilowatt-hours', regex=True)
+    logger.info("Applied transformation: Replaced 'terawatt-hours' with 'kilowatt-hours' in description and unit columns.")
+
+    codebook_df['description'] = codebook_df['description'].str.replace(
+        r'(?i)million tonnes', 'tonnes', regex=True)
+    codebook_df['unit'] = codebook_df['unit'].str.replace(
+        r'(?i)million tonnes', 'tonnes', regex=True)
+    logger.info("Applied transformation: Replaced 'million tonnes' with 'tonnes' in description and unit columns.")
+
+    percentage_columns = codebook_df[codebook_df['unit'].str.contains('%', na=False)]['column'].tolist()
+    for col in percentage_columns:
+        idx = codebook_df[codebook_df['column'] == col].index[0]
+        original_description = codebook_df.at[idx, 'description']
+        if "Measured as a percentage fraction of 1" not in original_description:
+            updated_description = re.sub(r'Measured as a percentage', '', original_description, flags=re.IGNORECASE).strip()
+            updated_description += " (Measured as a percentage fraction of 1, e.g., 0.32 = 32%)"
+            codebook_df.at[idx, 'description'] = updated_description
+            logger.info(f"Updated description for '{col}' to indicate percentage fraction.")
+    return codebook_df
+
 # Core Processing Functions
 
 # Filter main dataset function
 def filter_main_dataset(df, config):
     df_filtered = df[config['columns_to_keep']].copy()
-    df_filtered.dropna(subset=['population'], inplace=True)
+    df_filtered.dropna(subset=['population', 'electricity_demand'], how='any', inplace=True)
     return df_filtered
 
 # Filter year range function
@@ -186,12 +218,10 @@ def apply_unit_conversion_script(df, codebook_df):
             unit = row['unit']
             if col in df.columns and isinstance(unit, str):
                 normalized_unit = unit.lower()
-                if 'terawatt-hour' in normalized_unit or 'twh' in normalized_unit:
+                # Convert Terawatt-hours to Kilowatt-hours
+                if 'terawatt-hour' in normalized_unit or 'twh' in normalized_unit or 'kilowatt-hours' in normalized_unit:
                     df[col] = df[col] * 1e9  # Convert TWh to kWh
                     logger.info(f"Converted '{col}' from TWh to kWh")
-                elif 'million tonne' in normalized_unit or 'million tonnes' in normalized_unit:
-                    df[col] = df[col] * 1e6  # Convert million tonnes to tonnes
-                    logger.info(f"Converted '{col}' from million tonnes to tonnes")
                 else:
                     logger.info(f"No conversion needed for '{col}' with unit '{unit}'")
         return df
@@ -315,22 +345,30 @@ def main():
     download_datasets()
     config = load_or_create_config()
 
+    # Load datasets
     df = load_main_dataset()
     df_filtered = filter_main_dataset(df, config)
     codebook_df = load_codebook()
 
-    # Process for `processed_energy_data.csv`
+    # Apply unit conversions before any unit label transformation
     df_filtered = apply_unit_conversion_script(df_filtered, codebook_df)
+
+    # Update codebook units to reflect converted units (e.g., TWh -> kWh)
     codebook_df = update_codebook_units_after_conversion(codebook_df)
+
+    # Apply transformations to the codebook for descriptions and labels
+    codebook_df = apply_transformations(codebook_df)
+
+    # Process for `processed_energy_data.csv`
     df_filtered = filter_year_range(df_filtered, config)
     df_latest = prioritize_active_year(df_filtered, config)
 
     df_latest = fill_gdp_using_world_bank(df_latest, config['active_year'], config['previousYearRange'])
 
-    # Rename columns to include 'kWh'
+    # Rename columns to include updated units, such as 'kWh'
     df_latest = rename_columns(df_latest, codebook_df)
 
-    # Round numeric columns, now that 'kWh' is in the column names
+    # Round numeric columns after all transformations are complete
     df_latest = round_numeric_columns(df_latest)
 
     # Save processed energy data
@@ -347,10 +385,19 @@ def main():
     df_timeline = filter_dataset_by_year_range(df, timeline_start_year, timeline_end_year)
     df_timeline = filter_dataset_columns(df_timeline, timeline_columns_to_keep)
 
+    # Apply unit conversion to timeline dataset
+    df_timeline = apply_unit_conversion_script(df_timeline, codebook_df)
+
+    # Rename columns for timeline dataset
+    df_timeline = rename_columns(df_timeline, codebook_df)
+
+    # Round numeric columns for timeline dataset
+    df_timeline = round_numeric_columns(df_timeline)
+
+    # Save timeline processed energy data
     timeline_output_path = os.path.join(output_dir, f'processed_energy_data_{timeline_start_year}_{timeline_end_year}.csv')
     df_timeline.to_csv(timeline_output_path, index=False)
     logger.info(f"Timeline processed energy data saved to {timeline_output_path}")
 
 if __name__ == "__main__":
     main()
-
